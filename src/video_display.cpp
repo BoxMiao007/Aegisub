@@ -159,6 +159,8 @@ VideoDisplay::VideoDisplay(wxToolBar *toolbar, bool freeSize, wxComboBox *zoomBo
 	SetLayoutDirection(wxLayout_LeftToRight);
 
 	UpdateViewportSize(false, wxSize(1, 1));
+
+	ReloadDraftCoverRect();
 }
 
 VideoDisplay::~VideoDisplay () {
@@ -184,6 +186,8 @@ bool VideoDisplay::InitContext() {
 
 void VideoDisplay::UploadFrameData(FrameReadyEvent &evt) {
 	pending_frame = evt.frame;
+	cover_src = evt.frame;
+	cover_tex_dirty = true;
 	Render();
 }
 
@@ -251,7 +255,12 @@ void VideoDisplay::Render() try {
 		}
 	}
 
-	if ((mouse_pos || !autohideTools->GetBool()) && tool)
+	if (DraftCoverOn()) {
+		// While the draft cover is on the visual tools are paused; only the
+		// reveal rectangle is interactive.
+		RenderDraftCover(client_size.GetWidth(), client_size.GetHeight());
+	}
+	else if ((mouse_pos || !autohideTools->GetBool()) && tool)
 		tool->Draw();
 
 	SwapBuffers();
@@ -434,6 +443,11 @@ void VideoDisplay::OnMouseEvent(wxMouseEvent& event) {
 	}
 
 	last_mouse_pos = mouse_pos = event.GetPosition();
+
+	if (DraftCoverOn()) {
+		HandleDraftCoverMouse(event);
+		return;
+	}
 
 	if (tool)
 		tool->OnMouseEvent(event);
@@ -644,6 +658,13 @@ void VideoDisplay::Unload() {
 	if (glContext) {
 		SetCurrent(*glContext);
 	}
+	if (cover_tex) {
+		glDeleteTextures(1, &cover_tex);
+		cover_tex = 0;
+	}
+	cover_src.reset();
+	cover_pixels.clear();
+	cover_tex_dirty = true;
 	videoOut.reset();
 	tool.reset();
 	glContext.reset();

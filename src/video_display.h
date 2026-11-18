@@ -117,6 +117,22 @@ class VideoDisplay final : public wxGLCanvas {
 	/// Suspend drawing after a GL failure until another video is loaded.
 	bool render_failed = false;
 
+	// --- Draft cover: occlude the video (and baked-in subtitles) except a reveal rectangle ---
+	/// Downsampled RGBA image of the current frame used for mosaic/blur covering
+	std::vector<unsigned char> cover_pixels;
+	int cover_pw = 0;
+	int cover_ph = 0;
+	int cover_block = 0;
+	bool cover_tex_dirty = true;
+	unsigned int cover_tex = 0;
+	/// Source frame kept so the cover texture can be rebuilt when the effect changes
+	std::shared_ptr<VideoFrame> cover_src;
+	/// Reveal rectangle in normalized video coordinates (0..1)
+	double cover_rect_x = 0.1, cover_rect_y = 0.68, cover_rect_w = 0.8, cover_rect_h = 0.26;
+	/// Current drag interaction on the reveal rectangle
+	enum class CoverDrag { None, Move, TL, TR, BL, BR } cover_drag = CoverDrag::None;
+	Vector2D cover_drag_last;
+
 	/// The active visual typesetting tool
 	std::unique_ptr<VisualToolBase> tool;
 	/// The toolbar used by individual typesetting tools
@@ -140,6 +156,20 @@ class VideoDisplay final : public wxGLCanvas {
 	/// @param horizontal_percent The percent of the video reserved horizontally
 	/// @param vertical_percent The percent of the video reserved vertically
 	void DrawOverscanMask(float horizontal_percent, float vertical_percent) const;
+
+	// --- Draft cover helpers ---
+	/// Whether the draft cover is currently enabled
+	bool DraftCoverOn() const;
+	/// (Re)load the reveal rectangle from the config
+	void ReloadDraftCoverRect();
+	/// Persist the reveal rectangle to the config
+	void PersistDraftCoverRect();
+	/// Draw the cover over the video, leaving only the reveal rectangle visible
+	void RenderDraftCover(int client_w, int client_h);
+	/// Handle mouse input for the reveal rectangle; returns true if consumed
+	bool HandleDraftCoverMouse(wxMouseEvent &event);
+	/// Rebuild the downsampled cover texture if the frame or strength changed
+	void RebuildCoverTextureIfNeeded();
 
 	/// Upload the image for the current frame to the video card
 	void UploadFrameData(FrameReadyEvent&);
@@ -238,6 +268,9 @@ public:
 	Vector2D GetMousePosition() const;
 
 	void SetTool(std::unique_ptr<VisualToolBase> new_tool);
+
+	/// @brief Reset the draft cover reveal rectangle to its default position and persist it
+	void ResetDraftCoverRect();
 
 	void SetSubTool(int subtool) const { tool->SetSubTool(subtool); };
 

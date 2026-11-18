@@ -95,6 +95,7 @@
         { "submenu" : "main/video/set zoom", "text" : "Set &Zoom" },
         { "submenu" : "main/video/override ar", "text" : "Override &AR" },
         { "command" : "video/show_overscan" },
+        { "command" : "video/draft_cover" },
         { "command" : "video/reset_pan" },
         {},
         { "command" : "video/jump" },
@@ -161,6 +162,20 @@
         { "command" : "video/frame/copy/subs" },
         {},
         { "command" : "video/copy_coordinates" },
-        { "command" : "video/reset_pan" }
+        { "command" : "video/reset_pan" },
+        {},
+        { "submenu" : "video_context/draft_cover", "text" : "Draft &Cover" }
+    ],
+    "video_context/draft_cover" : [
+        { "command" : "video/draft_cover" },
+        {},
+        { "command" : "video/draft_cover/effect/solid" },
+        { "command" : "video/draft_cover/effect/mosaic" },
+        { "command" : "video/draft_cover/effect/blur" },
+        {},
+        { "command" : "video/draft_cover/color" },
+        { "command" : "video/draft_cover/strength" },
+        {},
+        { "command" : "video/draft_cover/reset" }
     ]
 }

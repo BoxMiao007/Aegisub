@@ -7504,3 +7504,99 @@ msgstr "音视频"
 #: ../packages/desktop/aegisub.metainfo.xml.in.in:51
 msgid "Audio timing"
 msgstr "音频时轴"
+
+#: ../src/command/video.cpp
+msgid "Draft &Cover"
+msgstr "草稿图(&C)"
+
+#: ../src/command/video.cpp
+msgid "&Draft Cover"
+msgstr "草稿图(&D)"
+
+#: ../src/command/video.cpp
+msgid "Draft Cover"
+msgstr "草稿图"
+
+#: ../src/command/video.cpp
+msgid "Cover the video with a blank draft, showing only an adjustable area so you can work without watching the picture"
+msgstr "用空白草稿盖住视频，只显示一个可调整的区域，让你不看画面也能工作"
+
+#: ../src/command/video.cpp
+msgid "&Solid Colour"
+msgstr "纯色填充(&S)"
+
+#: ../src/command/video.cpp
+msgid "Solid Colour"
+msgstr "纯色填充"
+
+#: ../src/command/video.cpp
+msgid "Fill the hidden area with a solid colour"
+msgstr "用纯色填满被遮挡的区域"
+
+#: ../src/command/video.cpp
+msgid "&Mosaic"
+msgstr "马赛克(&M)"
+
+#: ../src/command/video.cpp
+msgid "Mosaic"
+msgstr "马赛克"
+
+#: ../src/command/video.cpp
+msgid "Pixelate the hidden area (strength is adjustable)"
+msgstr "将被遮挡区域像素化（强度可调）"
+
+#: ../src/command/video.cpp
+msgid "&Blur"
+msgstr "模糊(&B)"
+
+#: ../src/command/video.cpp
+msgid "Blur"
+msgstr "模糊"
+
+#: ../src/command/video.cpp
+msgid "Blur the hidden area (strength is adjustable)"
+msgstr "模糊被遮挡区域（强度可调）"
+
+#: ../src/command/video.cpp
+msgid "&Colour..."
+msgstr "颜色(&C)..."
+
+#: ../src/command/video.cpp
+msgid "Colour..."
+msgstr "颜色..."
+
+#: ../src/command/video.cpp
+msgid "Choose the colour used by the solid fill"
+msgstr "选择纯色填充使用的颜色"
+
+#: ../src/command/video.cpp
+msgid "&Strength..."
+msgstr "强度(&S)..."
+
+#: ../src/command/video.cpp
+msgid "Strength..."
+msgstr "强度..."
+
+#: ../src/command/video.cpp
+msgid "Adjust the blur or mosaic strength of the hidden area"
+msgstr "调整被遮挡区域的模糊或马赛克强度"
+
+#: ../src/command/video.cpp
+msgid "Mosaic Strength"
+msgstr "马赛克强度"
+
+#: ../src/command/video.cpp
+msgid "Blur Strength"
+msgstr "模糊强度"
+
+#: ../src/command/video.cpp
+msgid "&Reset Reveal Area"
+msgstr "重置揭示区域(&R)"
+
+#: ../src/command/video.cpp
+msgid "Reset Reveal Area"
+msgstr "重置揭示区域"
+
+#: ../src/command/video.cpp
+msgid "Reset the revealed area to its default position"
+msgstr "把揭示区域恢复到默认位置"
