@@ -119,7 +119,7 @@ class VideoDisplay final : public wxGLCanvas {
 	bool render_failed = false;
 
 	// --- Spoiler shield: occlude the video (and baked-in subtitles) except a reveal rectangle ---
-	/// Downsampled RGBA image of the current frame used for mosaic/blur covering
+	/// Downsampled RGBA image of the current frame used for mosaic covering
 	std::vector<unsigned char> shield_pixels;
 	int shield_pw = 0;
 	int shield_ph = 0;
@@ -130,8 +130,12 @@ class VideoDisplay final : public wxGLCanvas {
 	std::shared_ptr<VideoFrame> shield_src;
 	/// Reveal rectangle in normalized video coordinates (0..1)
 	double shield_rect_x = 0.1, shield_rect_y = 0.68, shield_rect_w = 0.8, shield_rect_h = 0.26;
-	/// Current drag interaction on the reveal rectangle
-	enum class ShieldDrag { None, Move, TL, TR, BL, BR } shield_drag = ShieldDrag::None;
+	/// Current drag interaction on the reveal rectangle: borders, corners or moving
+	enum class ShieldDrag {
+		None, Move,
+		Left, Right, Top, Bottom,
+		TL, TR, BL, BR
+	} shield_drag = ShieldDrag::None;
 	Vector2D shield_drag_last;
 	/// Cursor to restore after the spoiler shield overrides the tool's blank cursor
 	wxCursor shield_saved_cursor;
@@ -172,6 +176,12 @@ class VideoDisplay final : public wxGLCanvas {
 	void RenderSpoilerShield(int client_w, int client_h);
 	/// Handle mouse input for the reveal rectangle; returns true if consumed
 	bool HandleSpoilerShieldMouse(wxMouseEvent &event);
+	/// Reveal rectangle in window (logical pixel) coordinates; false if there is no video
+	bool ShieldRectWindow(double *x1, double *y1, double *x2, double *y2) const;
+	/// Which part of the reveal rectangle the point grabs for dragging
+	ShieldDrag ShieldHitTest(double px, double py) const;
+	/// Match the mouse cursor to the current grab target under the pointer
+	void UpdateShieldCursor(double px, double py);
 	/// Rebuild the downsampled shield texture if the frame or strength changed
 	void RebuildShieldTextureIfNeeded();
 

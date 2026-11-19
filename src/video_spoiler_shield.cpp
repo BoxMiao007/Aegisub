@@ -226,7 +226,8 @@ void VideoDisplay::RenderSpoilerShield(int, int) {
 		glDisable(GL_TEXTURE_2D);
 	}
 
-	// Reveal rectangle outline + corner handles
+	// Reveal rectangle outline; handles on the corners and on the midpoint of
+	// every border show that each border can be dragged, not just the corners.
 	glColor3ub(40, 160, 255);
 	glLineWidth(2.0f);
 	glBegin(GL_LINE_LOOP);
@@ -234,59 +235,112 @@ void VideoDisplay::RenderSpoilerShield(int, int) {
 	glEnd();
 
 	const double hs = 4.0;
-	double corners[4][2] = {{rx, ry}, {rr, ry}, {rr, rb}, {rx, rb}};
+	double mx = (rx + rr) * 0.5;
+	double my = (ry + rb) * 0.5;
+	double handles[8][2] = {
+		{rx, ry}, {rr, ry}, {rr, rb}, {rx, rb},
+		{mx, ry}, {rr, my}, {mx, rb}, {rx, my}
+	};
 	glBegin(GL_QUADS);
-	for (auto& c : corners) {
-		glVertex2d(c[0] - hs, c[1] - hs); glVertex2d(c[0] + hs, c[1] - hs);
-		glVertex2d(c[0] + hs, c[1] + hs); glVertex2d(c[0] - hs, c[1] + hs);
+	for (auto& h : handles) {
+		glVertex2d(h[0] - hs, h[1] - hs); glVertex2d(h[0] + hs, h[1] - hs);
+		glVertex2d(h[0] + hs, h[1] + hs); glVertex2d(h[0] - hs, h[1] + hs);
 	}
 	glEnd();
 	glLineWidth(1.0f);
 }
 
-bool VideoDisplay::HandleSpoilerShieldMouse(wxMouseEvent &event) {
-	if (!content_width || !content_height) return true;
+bool VideoDisplay::ShieldRectWindow(double *x1, double *y1, double *x2, double *y2) const {
+	if (!content_width || !content_height) return false;
 
 	double sf = scale_factor ? scale_factor : 1.0;
-	double cxl = content_left / sf;
-	double cyl = content_top / sf;
 	double cwl = content_width / sf;
 	double chl = content_height / sf;
-	if (cwl <= 0 || chl <= 0) return true;
+	if (cwl <= 0 || chl <= 0) return false;
+
+	*x1 = content_left / sf + shield_rect_x * cwl;
+	*y1 = content_top / sf + shield_rect_y * chl;
+	*x2 = *x1 + shield_rect_w * cwl;
+	*y2 = *y1 + shield_rect_h * chl;
+	return true;
+}
+
+VideoDisplay::ShieldDrag VideoDisplay::ShieldHitTest(double px, double py) const {
+	double rx, ry, rr, rb;
+	if (!ShieldRectWindow(&rx, &ry, &rr, &rb)) return ShieldDrag::None;
+
+	// Any of the four borders can be grabbed, not only the corners: the grab
+	// band is a few pixels wide on both sides of each border, and the corners
+	// win where two bands overlap.
+	const double hit = 8.0;
+	bool left = std::abs(px - rx) <= hit;
+	bool right = std::abs(px - rr) <= hit;
+	bool top = std::abs(py - ry) <= hit;
+	bool bottom = std::abs(py - rb) <= hit;
+	bool in_x = px >= rx - hit && px <= rr + hit;
+	bool in_y = py >= ry - hit && py <= rb + hit;
+
+	if (left && top) return ShieldDrag::TL;
+	if (right && top) return ShieldDrag::TR;
+	if (left && bottom) return ShieldDrag::BL;
+	if (right && bottom) return ShieldDrag::BR;
+	if (left && in_y) return ShieldDrag::Left;
+	if (right && in_y) return ShieldDrag::Right;
+	if (top && in_x) return ShieldDrag::Top;
+	if (bottom && in_x) return ShieldDrag::Bottom;
+	if (px > rx && px < rr && py > ry && py < rb) return ShieldDrag::Move;
+	return ShieldDrag::None;
+}
+
+void VideoDisplay::UpdateShieldCursor(double px, double py) {
+	switch (ShieldHitTest(px, py)) {
+		case ShieldDrag::Left:
+		case ShieldDrag::Right:
+			SetCursor(wxCursor(wxCURSOR_SIZEWE));
+			break;
+		case ShieldDrag::Top:
+		case ShieldDrag::Bottom:
+			SetCursor(wxCursor(wxCURSOR_SIZENS));
+			break;
+		case ShieldDrag::TL:
+		case ShieldDrag::BR:
+			SetCursor(wxCursor(wxCURSOR_SIZENWSE));
+			break;
+		case ShieldDrag::TR:
+		case ShieldDrag::BL:
+			SetCursor(wxCursor(wxCURSOR_SIZENESW));
+			break;
+		case ShieldDrag::Move:
+			SetCursor(wxCursor(wxCURSOR_SIZING));
+			break;
+		default:
+			SetCursor(wxCursor(wxCURSOR_ARROW));
+			break;
+	}
+}
+
+bool VideoDisplay::HandleSpoilerShieldMouse(wxMouseEvent &event) {
+	double rx, ry, rr, rb;
+	if (!ShieldRectWindow(&rx, &ry, &rr, &rb)) return true;
 
 	double px = (double)event.GetX();
 	double py = (double)event.GetY();
 
-	double rx = cxl + shield_rect_x * cwl;
-	double ry = cyl + shield_rect_y * chl;
-	double rr = rx + shield_rect_w * cwl;
-	double rb = ry + shield_rect_h * chl;
-
-	const double handle = 10.0;
-	const double minw = 0.03, minh = 0.03;
-
 	if (event.LeftDown()) {
-		if (std::abs(px - rx) <= handle && std::abs(py - ry) <= handle)
-			shield_drag = ShieldDrag::TL;
-		else if (std::abs(px - rr) <= handle && std::abs(py - ry) <= handle)
-			shield_drag = ShieldDrag::TR;
-		else if (std::abs(px - rx) <= handle && std::abs(py - rb) <= handle)
-			shield_drag = ShieldDrag::BL;
-		else if (std::abs(px - rr) <= handle && std::abs(py - rb) <= handle)
-			shield_drag = ShieldDrag::BR;
-		else if (px >= rx && px <= rr && py >= ry && py <= rb) {
-			shield_drag = ShieldDrag::Move;
+		shield_drag = ShieldHitTest(px, py);
+		if (shield_drag == ShieldDrag::Move)
 			shield_drag_last = Vector2D(px, py);
-		}
-		else
-			shield_drag = ShieldDrag::None;
-
 		if (shield_drag != ShieldDrag::None && !HasCapture())
 			CaptureMouse();
+		UpdateShieldCursor(px, py);
 		return true;
 	}
 
 	if (event.Dragging() && event.LeftIsDown() && shield_drag != ShieldDrag::None) {
+		double sf = scale_factor ? scale_factor : 1.0;
+		double cwl = content_width / sf;
+		double chl = content_height / sf;
+
 		if (shield_drag == ShieldDrag::Move) {
 			double dx = (px - shield_drag_last.X()) / cwl;
 			double dy = (py - shield_drag_last.Y()) / chl;
@@ -295,21 +349,52 @@ bool VideoDisplay::HandleSpoilerShieldMouse(wxMouseEvent &event) {
 			shield_drag_last = Vector2D(px, py);
 		}
 		else {
-			double nx = std::clamp((px - cxl) / cwl, 0.0, 1.0);
-			double ny = std::clamp((py - cyl) / chl, 0.0, 1.0);
+			// The border opposite the grabbed one stays put, and the window keeps
+			// a minimum size of 24 logical pixels.
+			double nx = std::clamp((px - content_left / sf) / cwl, 0.0, 1.0);
+			double ny = std::clamp((py - content_top / sf) / chl, 0.0, 1.0);
 			double x1 = shield_rect_x, y1 = shield_rect_y;
 			double x2 = shield_rect_x + shield_rect_w, y2 = shield_rect_y + shield_rect_h;
+			double minw = std::min(0.5, 24.0 / cwl);
+			double minh = std::min(0.5, 24.0 / chl);
+
 			switch (shield_drag) {
-				case ShieldDrag::TL: x1 = std::min(nx, x2 - minw); y1 = std::min(ny, y2 - minh); break;
-				case ShieldDrag::TR: x2 = std::max(nx, x1 + minw); y1 = std::min(ny, y2 - minh); break;
-				case ShieldDrag::BL: x1 = std::min(nx, x2 - minw); y2 = std::max(ny, y1 + minh); break;
-				case ShieldDrag::BR: x2 = std::max(nx, x1 + minw); y2 = std::max(ny, y1 + minh); break;
-				default: break;
+				case ShieldDrag::Left:
+					x1 = std::clamp(nx, 0.0, std::max(0.0, x2 - minw));
+					break;
+				case ShieldDrag::Right:
+					x2 = std::clamp(nx, std::min(1.0, x1 + minw), 1.0);
+					break;
+				case ShieldDrag::Top:
+					y1 = std::clamp(ny, 0.0, std::max(0.0, y2 - minh));
+					break;
+				case ShieldDrag::Bottom:
+					y2 = std::clamp(ny, std::min(1.0, y1 + minh), 1.0);
+					break;
+				case ShieldDrag::TL:
+					x1 = std::clamp(nx, 0.0, std::max(0.0, x2 - minw));
+					y1 = std::clamp(ny, 0.0, std::max(0.0, y2 - minh));
+					break;
+				case ShieldDrag::TR:
+					x2 = std::clamp(nx, std::min(1.0, x1 + minw), 1.0);
+					y1 = std::clamp(ny, 0.0, std::max(0.0, y2 - minh));
+					break;
+				case ShieldDrag::BL:
+					x1 = std::clamp(nx, 0.0, std::max(0.0, x2 - minw));
+					y2 = std::clamp(ny, std::min(1.0, y1 + minh), 1.0);
+					break;
+				case ShieldDrag::BR:
+					x2 = std::clamp(nx, std::min(1.0, x1 + minw), 1.0);
+					y2 = std::clamp(ny, std::min(1.0, y1 + minh), 1.0);
+					break;
+				default:
+					break;
 			}
-			shield_rect_x = std::clamp(x1, 0.0, 1.0);
-			shield_rect_y = std::clamp(y1, 0.0, 1.0);
-			shield_rect_w = std::clamp(x2 - shield_rect_x, minw, 1.0 - shield_rect_x);
-			shield_rect_h = std::clamp(y2 - shield_rect_y, minh, 1.0 - shield_rect_y);
+
+			shield_rect_x = x1;
+			shield_rect_y = y1;
+			shield_rect_w = x2 - x1;
+			shield_rect_h = y2 - y1;
 		}
 		Render();
 		return true;
@@ -320,9 +405,12 @@ bool VideoDisplay::HandleSpoilerShieldMouse(wxMouseEvent &event) {
 			shield_drag = ShieldDrag::None;
 			if (HasCapture()) ReleaseMouse();
 			PersistSpoilerShieldRect();
+			UpdateShieldCursor(px, py);
 		}
 		return true;
 	}
 
+	// Hovering a border or a handle previews the resize direction in the cursor.
+	UpdateShieldCursor(px, py);
 	return true;
 }

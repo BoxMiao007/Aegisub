@@ -471,7 +471,9 @@ void VideoDisplay::OnMouseEvent(wxMouseEvent& event) {
 
 void VideoDisplay::OnMouseLeave(wxMouseEvent& event) {
 	mouse_pos = Vector2D();
-	if (tool)
+	if (SpoilerShieldOn())
+		SetCursor(wxCursor(wxCURSOR_ARROW));
+	else if (tool)
 		tool->OnMouseEvent(event);
 }
 
