@@ -11,7 +11,8 @@ $lastSvnRevision = 6962
 $lastSvnHash = '16cd907fe7482cb54a7374cd28b8501f138116be'
 $defineNumberMatch = [regex] '^#define\s+(\w+)\s+(\d+)$'
 $defineStringMatch = [regex] "^#define\s+(\w+)\s+[`"']?(.+?)[`"']?$"
-$semVerMatch = [regex] 'v?(\d+)\.(\d+).(\d+)(?:-(\w+))?'
+# Allow the fork suffix (-fork.N[-pre.date]) in the tag's pre-release part
+$semVerMatch = [regex] 'v?(\d+)\.(\d+).(\d+)(?:-([0-9A-Za-z._-]+))?'
 
 $repositoryRootPath = Join-Path $PSScriptRoot .. | Resolve-Path
 if (!(git -C $repositoryRootPath rev-parse --is-inside-work-tree 2>$null)) {
