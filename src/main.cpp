@@ -50,6 +50,7 @@
 #include "libresrc/libresrc.h"
 #include "options.h"
 #include "project.h"
+#include "spoiler_shield_migration.h"
 #include "subs_controller.h"
 #include "subtitles_provider_libass.h"
 #include "utils.h"
@@ -230,6 +231,12 @@ bool AegisubApp::OnInit() {
 	} catch (agi::Exception& e) {
 		LOG_E("config/init") << "Caught exception: " << e.GetMessage();
 	}
+
+	// Renamed/removed legacy options in the user profile would be silently
+	// dropped when merged with the defaults, so migrate them while loading the
+	// actual profile. This must happen before ConfigUser() reads the file.
+	if (config::opt)
+		spoiler::RegisterOptionsMigration(*config::opt);
 
 	try {
 		config::opt->ConfigUser();

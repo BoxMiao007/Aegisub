@@ -19,7 +19,13 @@
 #include <main.h>
 #include <util.h>
 
+#include "../../src/spoiler_shield_migration.h"
+
 #include <fstream>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <vector>
 
 static const char default_opt[] = "{\"Valid\" : \"This is valid\"}";
 static const char all_types[] = R"raw({
@@ -219,4 +225,178 @@ TEST_F(lagi_option, color_vs_string) {
 	CHECK_TYPE("&", String);
 	CHECK_TYPE("&H000000&", Color);
 	CHECK_TYPE("&H00000000", Color);
+}
+
+static const char spoiler_defaults[] = R"raw({
+	"Video" : {
+		"Spoiler Shield" : {
+			"Enabled" : false,
+			"Effect" : 0,
+			"Color" : "rgb(64, 64, 64)",
+			"Mosaic Block" : 16,
+			"Reveal Rect" : "0.1,0.68,0.8,0.26"
+		}
+	}
+})raw";
+
+static void write_option_file(const char *path, const char *json) {
+	std::ofstream out(path);
+	out << json;
+}
+
+TEST_F(lagi_option, spoiler_shield_migrates_legacy_draft_cover) {
+	const char *path = "data/options/tmp_migrate_all";
+	write_option_file(path, R"raw({
+	"Video" : {
+		"Draft Cover" : {
+			"Enabled" : true,
+			"Effect" : 1,
+			"Color" : "rgb(10, 20, 30)",
+			"Blur Strength" : 8,
+			"Mosaic Block" : 40,
+			"Reveal Rect" : "0.2,0.3,0.4,0.5"
+		}
+	}
+})raw");
+
+	agi::Options opt(path, spoiler_defaults, agi::Options::FLUSH_SKIP);
+	spoiler::RegisterOptionsMigration(opt);
+	ASSERT_NO_THROW(opt.ConfigUser());
+
+	EXPECT_TRUE(opt.Get("Video/Spoiler Shield/Enabled")->GetBool());
+	EXPECT_EQ(1, opt.Get("Video/Spoiler Shield/Effect")->GetInt());
+	EXPECT_STREQ("rgb(10, 20, 30)", opt.Get("Video/Spoiler Shield/Color")->GetColor().GetRgbFormatted().c_str());
+	EXPECT_EQ(40, opt.Get("Video/Spoiler Shield/Mosaic Block")->GetInt());
+	EXPECT_STREQ("0.2,0.3,0.4,0.5", opt.Get("Video/Spoiler Shield/Reveal Rect")->GetString().c_str());
+
+	// The removed blur strength option has no current equivalent.
+	EXPECT_THROW(opt.Get("Video/Spoiler Shield/Blur Strength"), agi::InternalError);
+}
+
+TEST_F(lagi_option, spoiler_shield_maps_removed_blur_to_solid) {
+	const char *path = "data/options/tmp_migrate_blur";
+	write_option_file(path, R"raw({ "Video" : { "Draft Cover" : { "Effect" : 2 } } })raw");
+
+	agi::Options opt(path, spoiler_defaults, agi::Options::FLUSH_SKIP);
+	spoiler::RegisterOptionsMigration(opt);
+	ASSERT_NO_THROW(opt.ConfigUser());
+	EXPECT_EQ(0, opt.Get("Video/Spoiler Shield/Effect")->GetInt());
+}
+
+TEST_F(lagi_option, spoiler_shield_maps_invalid_effect_to_solid) {
+	const char *path = "data/options/tmp_migrate_invalid";
+	const int bad_effects[] = {7, -1, 100};
+	for (int bad : bad_effects) {
+		{
+			std::ofstream out(path);
+			out << "{ \"Video\" : { \"Draft Cover\" : { \"Effect\" : " << bad << " } } }";
+		}
+		agi::Options opt(path, spoiler_defaults, agi::Options::FLUSH_SKIP);
+		spoiler::RegisterOptionsMigration(opt);
+		ASSERT_NO_THROW(opt.ConfigUser());
+		EXPECT_EQ(0, opt.Get("Video/Spoiler Shield/Effect")->GetInt()) << "legacy effect " << bad;
+	}
+}
+
+TEST_F(lagi_option, spoiler_shield_explicit_new_values_win) {
+	const char *path = "data/options/tmp_migrate_merge";
+	write_option_file(path, R"raw({
+	"Video" : {
+		"Draft Cover" : {
+			"Enabled" : false,
+			"Effect" : 2,
+			"Color" : "rgb(1, 2, 3)",
+			"Mosaic Block" : 8,
+			"Reveal Rect" : "0,0,1,1"
+		},
+		"Spoiler Shield" : {
+			"Enabled" : true
+		}
+	}
+})raw");
+
+	agi::Options opt(path, spoiler_defaults, agi::Options::FLUSH_SKIP);
+	spoiler::RegisterOptionsMigration(opt);
+	ASSERT_NO_THROW(opt.ConfigUser());
+
+	// The explicitly-set new value wins over the legacy one.
+	EXPECT_TRUE(opt.Get("Video/Spoiler Shield/Enabled")->GetBool());
+	// Keys not set under the new names are still filled from the legacy group.
+	EXPECT_EQ(0, opt.Get("Video/Spoiler Shield/Effect")->GetInt());
+	EXPECT_STREQ("rgb(1, 2, 3)", opt.Get("Video/Spoiler Shield/Color")->GetColor().GetRgbFormatted().c_str());
+	EXPECT_EQ(8, opt.Get("Video/Spoiler Shield/Mosaic Block")->GetInt());
+	EXPECT_STREQ("0,0,1,1", opt.Get("Video/Spoiler Shield/Reveal Rect")->GetString().c_str());
+}
+
+TEST_F(lagi_option, spoiler_shield_ignores_malformed_legacy_values) {
+	const char *path = "data/options/tmp_migrate_malformed";
+	write_option_file(path, R"raw({
+	"Video" : {
+		"Draft Cover" : {
+			"Enabled" : "yes",
+			"Effect" : "blur",
+			"Color" : "not a colour",
+			"Mosaic Block" : 999,
+			"Reveal Rect" : "garbage",
+			"Blur Strength" : { "unexpected" : 1 }
+		}
+	}
+})raw");
+
+	agi::Options opt(path, spoiler_defaults, agi::Options::FLUSH_SKIP);
+	spoiler::RegisterOptionsMigration(opt);
+	ASSERT_NO_THROW(opt.ConfigUser());
+
+	// Malformed values fall back to the defaults instead of being copied.
+	EXPECT_FALSE(opt.Get("Video/Spoiler Shield/Enabled")->GetBool());
+	EXPECT_EQ(0, opt.Get("Video/Spoiler Shield/Effect")->GetInt());
+	EXPECT_STREQ("rgb(64, 64, 64)", opt.Get("Video/Spoiler Shield/Color")->GetColor().GetRgbFormatted().c_str());
+	EXPECT_STREQ("0.1,0.68,0.8,0.26", opt.Get("Video/Spoiler Shield/Reveal Rect")->GetString().c_str());
+	// A well-typed legacy value still migrates.
+	EXPECT_EQ(999, opt.Get("Video/Spoiler Shield/Mosaic Block")->GetInt());
+}
+
+TEST_F(lagi_option, spoiler_shield_migration_runs_only_for_user_profile) {
+	agi::Options opt("", spoiler_defaults, agi::Options::FLUSH_SKIP);
+	spoiler::RegisterOptionsMigration(opt);
+
+	// Additional configs loaded with ConfigNext() are not the user profile and
+	// must not be migrated; their legacy keys are simply discarded.
+	std::istringstream next(R"raw({ "Video" : { "Draft Cover" : { "Effect" : 1, "Mosaic Block" : 77 } } })raw");
+	opt.ConfigNext(next);
+
+	EXPECT_EQ(0, opt.Get("Video/Spoiler Shield/Effect")->GetInt());
+	EXPECT_EQ(16, opt.Get("Video/Spoiler Shield/Mosaic Block")->GetInt());
+}
+
+TEST_F(lagi_option, spoiler_shield_migration_is_idempotent) {
+	std::vector<std::unique_ptr<agi::OptionValue>> values;
+	values.push_back(std::make_unique<agi::OptionValueBool>("Video/Draft Cover/Enabled", true));
+	values.push_back(std::make_unique<agi::OptionValueInt>("Video/Draft Cover/Effect", 2));
+	values.push_back(std::make_unique<agi::OptionValueInt>("Video/Draft Cover/Mosaic Block", 32));
+
+	spoiler::MigrateLegacyOptions(values);
+	auto after_first = values.size();
+
+	spoiler::MigrateLegacyOptions(values);
+	EXPECT_EQ(after_first, values.size());
+
+	int enabled = 0, effect = 0, mosaic = 0;
+	for (auto const &value : values) {
+		if (value->GetName() == "Video/Spoiler Shield/Enabled") {
+			EXPECT_TRUE(value->GetBool());
+			++enabled;
+		}
+		else if (value->GetName() == "Video/Spoiler Shield/Effect") {
+			EXPECT_EQ(0, value->GetInt());
+			++effect;
+		}
+		else if (value->GetName() == "Video/Spoiler Shield/Mosaic Block") {
+			EXPECT_EQ(32, value->GetInt());
+			++mosaic;
+		}
+	}
+	EXPECT_EQ(1, enabled);
+	EXPECT_EQ(1, effect);
+	EXPECT_EQ(1, mosaic);
 }
