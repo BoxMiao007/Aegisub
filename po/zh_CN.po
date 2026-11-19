@@ -7506,20 +7506,20 @@ msgid "Audio timing"
 msgstr "音频时轴"
 
 #: ../src/command/video.cpp
-msgid "Draft &Cover"
-msgstr "草稿图(&C)"
+msgid "Spoiler &Shield"
+msgstr "防剧透遮罩(&S)"
 
 #: ../src/command/video.cpp
-msgid "&Draft Cover"
-msgstr "草稿图(&D)"
+msgid "&Spoiler Shield"
+msgstr "防剧透遮罩(&S)"
 
 #: ../src/command/video.cpp
-msgid "Draft Cover"
-msgstr "草稿图"
+msgid "Spoiler Shield"
+msgstr "防剧透遮罩"
 
 #: ../src/command/video.cpp
-msgid "Cover the video with a blank draft, showing only an adjustable area so you can work without watching the picture"
-msgstr "用空白草稿盖住视频，只显示一个可调整的区域，让你不看画面也能工作"
+msgid "Cover the video with a blocking layer, showing only an adjustable window so you can work without watching the picture"
+msgstr "用遮挡层盖住视频画面，只留一个可调整的取景窗，让你不看画面也能工作"
 
 #: ../src/command/video.cpp
 msgid "&Solid Colour"
@@ -7591,12 +7591,12 @@ msgstr "模糊强度"
 
 #: ../src/command/video.cpp
 msgid "&Reset Reveal Area"
-msgstr "重置揭示区域(&R)"
+msgstr "重置取景窗(&R)"
 
 #: ../src/command/video.cpp
 msgid "Reset Reveal Area"
-msgstr "重置揭示区域"
+msgstr "重置取景窗"
 
 #: ../src/command/video.cpp
 msgid "Reset the revealed area to its default position"
-msgstr "把揭示区域恢复到默认位置"
+msgstr "把取景窗恢复到默认位置和大小"

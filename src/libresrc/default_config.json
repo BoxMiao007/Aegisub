@@ -633,7 +633,7 @@
 		"Last LayoutRes Mismatch Choice" : 0,
 		"Open Audio" : true,
 		"Overscan Mask" : false,
-		"Draft Cover" : {
+		"Spoiler Shield" : {
 			"Enabled" : false,
 			"Effect" : 0,
 			"Color" : "rgb(64, 64, 64)",

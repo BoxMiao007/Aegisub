@@ -779,12 +779,12 @@ struct video_zoom_out final : public validator_video_attached {
 	}
 };
 
-// --- Draft cover commands ---
+// --- Spoiler shield commands ---
 
-class DraftCoverStrengthDialog final : public wxDialog {
+class SpoilerShieldStrengthDialog final : public wxDialog {
 	wxSlider *slider;
 public:
-	DraftCoverStrengthDialog(wxWindow *parent, wxString const& title, int value, int min, int max)
+	SpoilerShieldStrengthDialog(wxWindow *parent, wxString const& title, int value, int min, int max)
 	: wxDialog(parent, wxID_ANY, title)
 	{
 		auto *sizer = new wxBoxSizer(wxVERTICAL);
@@ -801,106 +801,106 @@ public:
 	int GetStrength() const { return slider->GetValue(); }
 };
 
-struct video_draft_cover final : public validator_video_loaded {
-	CMD_NAME("video/draft_cover")
-	CMD_ICON(draft_cover)
-	STR_MENU("&Draft Cover")
-	STR_DISP("Draft Cover")
-	STR_HELP("Cover the video with a blank draft, showing only an adjustable area so you can work without watching the picture")
+struct video_spoiler_shield final : public validator_video_loaded {
+	CMD_NAME("video/spoiler_shield")
+	CMD_ICON(spoiler_shield)
+	STR_MENU("&Spoiler Shield")
+	STR_DISP("Spoiler Shield")
+	STR_HELP("Cover the video with a blocking layer, showing only an adjustable window so you can work without watching the picture")
 	CMD_TYPE(COMMAND_VALIDATE | COMMAND_TOGGLE)
 
 	bool IsActive(const agi::Context *) override {
-		return OPT_GET("Video/Draft Cover/Enabled")->GetBool();
+		return OPT_GET("Video/Spoiler Shield/Enabled")->GetBool();
 	}
 	void operator()(agi::Context *c) override {
-		OPT_SET("Video/Draft Cover/Enabled")->SetBool(!OPT_GET("Video/Draft Cover/Enabled")->GetBool());
+		OPT_SET("Video/Spoiler Shield/Enabled")->SetBool(!OPT_GET("Video/Spoiler Shield/Enabled")->GetBool());
 		c->videoDisplay->Render();
 	}
 };
 
-struct video_draft_cover_solid final : public validator_video_loaded {
-	CMD_NAME("video/draft_cover/effect/solid")
+struct video_spoiler_shield_solid final : public validator_video_loaded {
+	CMD_NAME("video/spoiler_shield/effect/solid")
 	STR_MENU("&Solid Colour")
 	STR_DISP("Solid Colour")
 	STR_HELP("Fill the hidden area with a solid colour")
 	CMD_TYPE(COMMAND_VALIDATE | COMMAND_RADIO)
-	bool IsActive(const agi::Context *) override { return OPT_GET("Video/Draft Cover/Effect")->GetInt() == 0; }
-	void operator()(agi::Context *c) override { OPT_SET("Video/Draft Cover/Effect")->SetInt(0); c->videoDisplay->Render(); }
+	bool IsActive(const agi::Context *) override { return OPT_GET("Video/Spoiler Shield/Effect")->GetInt() == 0; }
+	void operator()(agi::Context *c) override { OPT_SET("Video/Spoiler Shield/Effect")->SetInt(0); c->videoDisplay->Render(); }
 };
 
-struct video_draft_cover_mosaic final : public validator_video_loaded {
-	CMD_NAME("video/draft_cover/effect/mosaic")
+struct video_spoiler_shield_mosaic final : public validator_video_loaded {
+	CMD_NAME("video/spoiler_shield/effect/mosaic")
 	STR_MENU("&Mosaic")
 	STR_DISP("Mosaic")
 	STR_HELP("Pixelate the hidden area (strength is adjustable)")
 	CMD_TYPE(COMMAND_VALIDATE | COMMAND_RADIO)
-	bool IsActive(const agi::Context *) override { return OPT_GET("Video/Draft Cover/Effect")->GetInt() == 1; }
-	void operator()(agi::Context *c) override { OPT_SET("Video/Draft Cover/Effect")->SetInt(1); c->videoDisplay->Render(); }
+	bool IsActive(const agi::Context *) override { return OPT_GET("Video/Spoiler Shield/Effect")->GetInt() == 1; }
+	void operator()(agi::Context *c) override { OPT_SET("Video/Spoiler Shield/Effect")->SetInt(1); c->videoDisplay->Render(); }
 };
 
-struct video_draft_cover_blur final : public validator_video_loaded {
-	CMD_NAME("video/draft_cover/effect/blur")
+struct video_spoiler_shield_blur final : public validator_video_loaded {
+	CMD_NAME("video/spoiler_shield/effect/blur")
 	STR_MENU("&Blur")
 	STR_DISP("Blur")
 	STR_HELP("Blur the hidden area (strength is adjustable)")
 	CMD_TYPE(COMMAND_VALIDATE | COMMAND_RADIO)
-	bool IsActive(const agi::Context *) override { return OPT_GET("Video/Draft Cover/Effect")->GetInt() == 2; }
-	void operator()(agi::Context *c) override { OPT_SET("Video/Draft Cover/Effect")->SetInt(2); c->videoDisplay->Render(); }
+	bool IsActive(const agi::Context *) override { return OPT_GET("Video/Spoiler Shield/Effect")->GetInt() == 2; }
+	void operator()(agi::Context *c) override { OPT_SET("Video/Spoiler Shield/Effect")->SetInt(2); c->videoDisplay->Render(); }
 };
 
-struct video_draft_cover_color final : public validator_video_loaded {
-	CMD_NAME("video/draft_cover/color")
+struct video_spoiler_shield_color final : public validator_video_loaded {
+	CMD_NAME("video/spoiler_shield/color")
 	STR_MENU("&Colour...")
 	STR_DISP("Colour...")
 	STR_HELP("Choose the colour used by the solid fill")
 	CMD_TYPE(COMMAND_VALIDATE)
 	void operator()(agi::Context *c) override {
 		wxColourData data;
-		data.SetColour(to_wx(OPT_GET("Video/Draft Cover/Color")->GetColor()));
+		data.SetColour(to_wx(OPT_GET("Video/Spoiler Shield/Color")->GetColor()));
 		wxColourDialog dialog(c->parent, &data);
 		if (dialog.ShowModal() == wxID_OK) {
-			OPT_SET("Video/Draft Cover/Color")->SetColor(from_wx(dialog.GetColourData().GetColour()));
+			OPT_SET("Video/Spoiler Shield/Color")->SetColor(from_wx(dialog.GetColourData().GetColour()));
 			c->videoDisplay->Render();
 		}
 	}
 };
 
-struct video_draft_cover_strength final : public validator_video_loaded {
-	CMD_NAME("video/draft_cover/strength")
+struct video_spoiler_shield_strength final : public validator_video_loaded {
+	CMD_NAME("video/spoiler_shield/strength")
 	STR_MENU("&Strength...")
 	STR_DISP("Strength...")
 	STR_HELP("Adjust the blur or mosaic strength of the hidden area")
 	CMD_TYPE(COMMAND_VALIDATE)
 
 	bool Validate(const agi::Context *c) override {
-		return validator_video_loaded::Validate(c) && OPT_GET("Video/Draft Cover/Effect")->GetInt() != 0;
+		return validator_video_loaded::Validate(c) && OPT_GET("Video/Spoiler Shield/Effect")->GetInt() != 0;
 	}
 	void operator()(agi::Context *c) override {
-		if (OPT_GET("Video/Draft Cover/Effect")->GetInt() == 1) {
-			DraftCoverStrengthDialog dialog(c->parent, _("Mosaic Strength"), (int)OPT_GET("Video/Draft Cover/Mosaic Block")->GetInt(), 2, 96);
+		if (OPT_GET("Video/Spoiler Shield/Effect")->GetInt() == 1) {
+			SpoilerShieldStrengthDialog dialog(c->parent, _("Mosaic Strength"), (int)OPT_GET("Video/Spoiler Shield/Mosaic Block")->GetInt(), 2, 96);
 			if (dialog.ShowModal() == wxID_OK) {
-				OPT_SET("Video/Draft Cover/Mosaic Block")->SetInt(dialog.GetStrength());
+				OPT_SET("Video/Spoiler Shield/Mosaic Block")->SetInt(dialog.GetStrength());
 				c->videoDisplay->Render();
 			}
 		}
 		else {
-			DraftCoverStrengthDialog dialog(c->parent, _("Blur Strength"), (int)OPT_GET("Video/Draft Cover/Blur Strength")->GetInt(), 2, 48);
+			SpoilerShieldStrengthDialog dialog(c->parent, _("Blur Strength"), (int)OPT_GET("Video/Spoiler Shield/Blur Strength")->GetInt(), 2, 48);
 			if (dialog.ShowModal() == wxID_OK) {
-				OPT_SET("Video/Draft Cover/Blur Strength")->SetInt(dialog.GetStrength());
+				OPT_SET("Video/Spoiler Shield/Blur Strength")->SetInt(dialog.GetStrength());
 				c->videoDisplay->Render();
 			}
 		}
 	}
 };
 
-struct video_draft_cover_reset final : public validator_video_loaded {
-	CMD_NAME("video/draft_cover/reset")
+struct video_spoiler_shield_reset final : public validator_video_loaded {
+	CMD_NAME("video/spoiler_shield/reset")
 	STR_MENU("&Reset Reveal Area")
 	STR_DISP("Reset Reveal Area")
 	STR_HELP("Reset the revealed area to its default position")
 	CMD_TYPE(COMMAND_VALIDATE)
 	void operator()(agi::Context *c) override {
-		c->videoDisplay->ResetDraftCoverRect();
+		c->videoDisplay->ResetSpoilerShieldRect();
 		c->videoDisplay->Render();
 	}
 };
@@ -918,13 +918,13 @@ namespace cmd {
 		reg(std::make_unique<video_cycle_subtitles_provider>());
 		reg(std::make_unique<video_detach>());
 		reg(std::make_unique<video_details>());
-		reg(std::make_unique<video_draft_cover>());
-		reg(std::make_unique<video_draft_cover_solid>());
-		reg(std::make_unique<video_draft_cover_mosaic>());
-		reg(std::make_unique<video_draft_cover_blur>());
-		reg(std::make_unique<video_draft_cover_color>());
-		reg(std::make_unique<video_draft_cover_strength>());
-		reg(std::make_unique<video_draft_cover_reset>());
+		reg(std::make_unique<video_spoiler_shield>());
+		reg(std::make_unique<video_spoiler_shield_solid>());
+		reg(std::make_unique<video_spoiler_shield_mosaic>());
+		reg(std::make_unique<video_spoiler_shield_blur>());
+		reg(std::make_unique<video_spoiler_shield_color>());
+		reg(std::make_unique<video_spoiler_shield_strength>());
+		reg(std::make_unique<video_spoiler_shield_reset>());
 		reg(std::make_unique<video_focus_seek>());
 		reg(std::make_unique<video_frame_copy>());
 		reg(std::make_unique<video_frame_copy_raw>());

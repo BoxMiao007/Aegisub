@@ -160,7 +160,7 @@ VideoDisplay::VideoDisplay(wxToolBar *toolbar, bool freeSize, wxComboBox *zoomBo
 
 	UpdateViewportSize(false, wxSize(1, 1));
 
-	ReloadDraftCoverRect();
+	ReloadSpoilerShieldRect();
 }
 
 VideoDisplay::~VideoDisplay () {
@@ -186,8 +186,8 @@ bool VideoDisplay::InitContext() {
 
 void VideoDisplay::UploadFrameData(FrameReadyEvent &evt) {
 	pending_frame = evt.frame;
-	cover_src = evt.frame;
-	cover_tex_dirty = true;
+	shield_src = evt.frame;
+	shield_tex_dirty = true;
 	Render();
 }
 
@@ -204,19 +204,19 @@ void VideoDisplay::Render() try {
 	if (render_failed) return;
 
 	// The default crosshair visual tool blanks the OS cursor and draws its own
-	// crosshair instead. While the draft cover is on that tool is paused, so we
+	// crosshair instead. While the spoiler shield is on that tool is paused, so we
 	// restore a visible pointer; restore the tool's cursor when it is turned off.
 	// This must run after the tool is created, as its constructor sets the blank
 	// cursor and would otherwise override us on the first render.
-	bool want_cover = DraftCoverOn();
-	if (want_cover && !cover_cursor_active) {
-		cover_saved_cursor = GetCursor();
+	bool want_shield = SpoilerShieldOn();
+	if (want_shield && !shield_cursor_active) {
+		shield_saved_cursor = GetCursor();
 		SetCursor(wxCursor(wxCURSOR_ARROW));
-		cover_cursor_active = true;
+		shield_cursor_active = true;
 	}
-	else if (!want_cover && cover_cursor_active) {
-		SetCursor(cover_saved_cursor);
-		cover_cursor_active = false;
+	else if (!want_shield && shield_cursor_active) {
+		SetCursor(shield_saved_cursor);
+		shield_cursor_active = false;
 	}
 
 	try {
@@ -271,10 +271,10 @@ void VideoDisplay::Render() try {
 		}
 	}
 
-	if (DraftCoverOn()) {
-		// While the draft cover is on the visual tools are paused; only the
+	if (SpoilerShieldOn()) {
+		// While the spoiler shield is on the visual tools are paused; only the
 		// reveal rectangle is interactive.
-		RenderDraftCover(client_size.GetWidth(), client_size.GetHeight());
+		RenderSpoilerShield(client_size.GetWidth(), client_size.GetHeight());
 	}
 	else if ((mouse_pos || !autohideTools->GetBool()) && tool)
 		tool->Draw();
@@ -460,8 +460,8 @@ void VideoDisplay::OnMouseEvent(wxMouseEvent& event) {
 
 	last_mouse_pos = mouse_pos = event.GetPosition();
 
-	if (DraftCoverOn()) {
-		HandleDraftCoverMouse(event);
+	if (SpoilerShieldOn()) {
+		HandleSpoilerShieldMouse(event);
 		return;
 	}
 
@@ -674,17 +674,17 @@ void VideoDisplay::Unload() {
 	if (glContext) {
 		SetCurrent(*glContext);
 	}
-	if (cover_cursor_active) {
-		SetCursor(cover_saved_cursor);
-		cover_cursor_active = false;
+	if (shield_cursor_active) {
+		SetCursor(shield_saved_cursor);
+		shield_cursor_active = false;
 	}
-	if (cover_tex) {
-		glDeleteTextures(1, &cover_tex);
-		cover_tex = 0;
+	if (shield_tex) {
+		glDeleteTextures(1, &shield_tex);
+		shield_tex = 0;
 	}
-	cover_src.reset();
-	cover_pixels.clear();
-	cover_tex_dirty = true;
+	shield_src.reset();
+	shield_pixels.clear();
+	shield_tex_dirty = true;
 	videoOut.reset();
 	tool.reset();
 	glContext.reset();

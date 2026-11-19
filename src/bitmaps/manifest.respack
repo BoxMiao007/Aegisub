@@ -216,11 +216,6 @@ button/detach_video_menu_24.png
 button/detach_video_menu_32.png
 button/detach_video_menu_48.png
 button/detach_video_menu_64.png
-button/draft_cover_16.png
-button/draft_cover_24.png
-button/draft_cover_32.png
-button/draft_cover_48.png
-button/draft_cover_64.png
 button/export_menu_16.png
 button/export_menu_24.png
 button/export_menu_32.png
@@ -411,6 +406,11 @@ button/spellcheck_toolbutton_24.png
 button/spellcheck_toolbutton_32.png
 button/spellcheck_toolbutton_48.png
 button/spellcheck_toolbutton_64.png
+button/spoiler_shield_16.png
+button/spoiler_shield_24.png
+button/spoiler_shield_32.png
+button/spoiler_shield_48.png
+button/spoiler_shield_64.png
 button/style_toolbutton_16.png
 button/style_toolbutton_24.png
 button/style_toolbutton_32.png

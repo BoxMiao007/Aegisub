@@ -142,7 +142,7 @@ aegisub_src = files(
     'version.cpp',
     'video_box.cpp',
     'video_controller.cpp',
-    'video_cover.cpp',
+    'video_spoiler_shield.cpp',
     'video_display.cpp',
     'video_frame.cpp',
     'video_out_gl.cpp',

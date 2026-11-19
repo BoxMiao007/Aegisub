@@ -1,3 +1,16 @@
+<!-- vibe-coding-declaration:begin -->
+> [!IMPORTANT]
+> 本仓库由 AI 开发与维护，所有代码变更均由 AI 执行。
+<!-- vibe-coding-declaration:end -->
+
+<!-- vibe-feature-registry:begin -->
+## 本 Fork 功能清单
+
+| 功能 | 一句话说明 | 关键文件/入口 | 引入提交 |
+| ---- | ---------- | -------------- | -------- |
+| 防剧透遮罩(Spoiler Shield) | 默认遮住视频预览(含烧录字幕),仅可调取景窗内正常显示画面;支持纯色/马赛克/模糊且强度可调;仅影响预览,不影响导出 | src/video_spoiler_shield.cpp、src/video_display.*、src/command/video.cpp、default_toolbar/menu/config.json | 本功能提交 |
+<!-- vibe-feature-registry:end -->
+
 # Aegisub
 
 For binaries and general information [see the homepage](http://aegisub.org).

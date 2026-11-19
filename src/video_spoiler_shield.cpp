@@ -14,11 +14,11 @@
 //
 // Aegisub Project http://www.aegisub.org/
 
-/// @file video_cover.cpp
-/// @brief Draft cover: occlude the video preview except an adjustable reveal area
+/// @file video_spoiler_shield.cpp
+/// @brief Spoiler shield: occlude the video preview except an adjustable reveal area
 /// @ingroup video main_ui
 ///
-/// The draft cover lets a user time/typeset subtitles without watching the
+/// The spoiler shield lets a user time/typeset subtitles without watching the
 /// picture. Everything in the video content rectangle is hidden (solid, mosaic
 /// or blur) except a single normalized reveal rectangle that the user can move
 /// and resize. Because subtitles are burned into the video frame by the async
@@ -46,12 +46,12 @@
 #endif
 
 namespace {
-const char *OPT_ENABLED = "Video/Draft Cover/Enabled";
-const char *OPT_EFFECT = "Video/Draft Cover/Effect";
-const char *OPT_COLOR = "Video/Draft Cover/Color";
-const char *OPT_BLUR = "Video/Draft Cover/Blur Strength";
-const char *OPT_MOSAIC = "Video/Draft Cover/Mosaic Block";
-const char *OPT_RECT = "Video/Draft Cover/Reveal Rect";
+const char *OPT_ENABLED = "Video/Spoiler Shield/Enabled";
+const char *OPT_EFFECT = "Video/Spoiler Shield/Effect";
+const char *OPT_COLOR = "Video/Spoiler Shield/Color";
+const char *OPT_BLUR = "Video/Spoiler Shield/Blur Strength";
+const char *OPT_MOSAIC = "Video/Spoiler Shield/Mosaic Block";
+const char *OPT_RECT = "Video/Spoiler Shield/Reveal Rect";
 
 const double DEFAULT_X = 0.1;
 const double DEFAULT_Y = 0.68;
@@ -59,11 +59,11 @@ const double DEFAULT_W = 0.8;
 const double DEFAULT_H = 0.26;
 }
 
-bool VideoDisplay::DraftCoverOn() const {
+bool VideoDisplay::SpoilerShieldOn() const {
 	return OPT_GET(OPT_ENABLED)->GetBool();
 }
 
-void VideoDisplay::ReloadDraftCoverRect() {
+void VideoDisplay::ReloadSpoilerShieldRect() {
 	double x = DEFAULT_X, y = DEFAULT_Y, w = DEFAULT_W, h = DEFAULT_H;
 	std::string s = OPT_GET(OPT_RECT)->GetString();
 	if (std::sscanf(s.c_str(), "%lf,%lf,%lf,%lf", &x, &y, &w, &h) != 4) {
@@ -75,27 +75,27 @@ void VideoDisplay::ReloadDraftCoverRect() {
 	x = std::clamp(x, 0.0, 1.0 - w);
 	y = std::clamp(y, 0.0, 1.0 - h);
 
-	cover_rect_x = x;
-	cover_rect_y = y;
-	cover_rect_w = w;
-	cover_rect_h = h;
+	shield_rect_x = x;
+	shield_rect_y = y;
+	shield_rect_w = w;
+	shield_rect_h = h;
 }
 
-void VideoDisplay::PersistDraftCoverRect() {
+void VideoDisplay::PersistSpoilerShieldRect() {
 	OPT_SET(OPT_RECT)->SetString(agi::format("%g,%g,%g,%g",
-		cover_rect_x, cover_rect_y, cover_rect_w, cover_rect_h));
+		shield_rect_x, shield_rect_y, shield_rect_w, shield_rect_h));
 }
 
-void VideoDisplay::ResetDraftCoverRect() {
-	cover_rect_x = DEFAULT_X;
-	cover_rect_y = DEFAULT_Y;
-	cover_rect_w = DEFAULT_W;
-	cover_rect_h = DEFAULT_H;
-	PersistDraftCoverRect();
+void VideoDisplay::ResetSpoilerShieldRect() {
+	shield_rect_x = DEFAULT_X;
+	shield_rect_y = DEFAULT_Y;
+	shield_rect_w = DEFAULT_W;
+	shield_rect_h = DEFAULT_H;
+	PersistSpoilerShieldRect();
 }
 
-void VideoDisplay::RebuildCoverTextureIfNeeded() {
-	if (!cover_src) return;
+void VideoDisplay::RebuildShieldTextureIfNeeded() {
+	if (!shield_src) return;
 
 	int effect = (int)OPT_GET(OPT_EFFECT)->GetInt();
 	if (effect == 0) return; // solid fill needs no texture
@@ -105,20 +105,20 @@ void VideoDisplay::RebuildCoverTextureIfNeeded() {
 		: (int)OPT_GET(OPT_BLUR)->GetInt();
 	block = std::clamp(block, 2, 128);
 
-	VideoFrame const& f = *cover_src;
+	VideoFrame const& f = *shield_src;
 	int pw = std::max(1, (f.width + block - 1) / block);
 	int ph = std::max(1, (f.height + block - 1) / block);
 
-	bool rebuild = cover_tex_dirty
-		|| block != cover_block
-		|| cover_pw != pw || cover_ph != ph
-		|| (int)cover_pixels.size() != pw * ph * 4;
+	bool rebuild = shield_tex_dirty
+		|| block != shield_block
+		|| shield_pw != pw || shield_ph != ph
+		|| (int)shield_pixels.size() != pw * ph * 4;
 	if (!rebuild) return;
 
 	// Box-average each block into one RGBA texel. Averaging (rather than point
 	// sampling) makes the downsampled image usable for both mosaic (nearest
 	// upscale -> crisp blocks) and blur (linear upscale -> soft image).
-	cover_pixels.assign((size_t)pw * ph * 4, 255);
+	shield_pixels.assign((size_t)pw * ph * 4, 255);
 	for (int oy = 0; oy < ph; ++oy) {
 		int py0 = oy * block;
 		int py1 = std::min(f.height, py0 + block);
@@ -135,7 +135,7 @@ void VideoDisplay::RebuildCoverTextureIfNeeded() {
 					sb += p[0]; sg += p[1]; sr += p[2]; ++n;
 				}
 			}
-			unsigned char *d = cover_pixels.data() + ((size_t)oy * pw + ox) * 4;
+			unsigned char *d = shield_pixels.data() + ((size_t)oy * pw + ox) * 4;
 			if (n) {
 				d[0] = (unsigned char)(sr / n);
 				d[1] = (unsigned char)(sg / n);
@@ -145,21 +145,21 @@ void VideoDisplay::RebuildCoverTextureIfNeeded() {
 		}
 	}
 
-	cover_pw = pw;
-	cover_ph = ph;
-	cover_block = block;
+	shield_pw = pw;
+	shield_ph = ph;
+	shield_block = block;
 
-	if (!cover_tex) glGenTextures(1, &cover_tex);
-	glBindTexture(GL_TEXTURE_2D, cover_tex);
+	if (!shield_tex) glGenTextures(1, &shield_tex);
+	glBindTexture(GL_TEXTURE_2D, shield_tex);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, pw, ph, 0, GL_RGBA, GL_UNSIGNED_BYTE, cover_pixels.data());
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, pw, ph, 0, GL_RGBA, GL_UNSIGNED_BYTE, shield_pixels.data());
 
-	cover_tex_dirty = false;
+	shield_tex_dirty = false;
 }
 
-void VideoDisplay::RenderDraftCover(int, int) {
+void VideoDisplay::RenderSpoilerShield(int, int) {
 	if (!content_width || !content_height) return;
 
 	double sf = scale_factor ? scale_factor : 1.0;
@@ -171,10 +171,10 @@ void VideoDisplay::RenderDraftCover(int, int) {
 	double cbottom = cyl + chl;
 
 	// Reveal rectangle in device (logical) coordinates
-	double rx = cxl + cover_rect_x * cwl;
-	double ry = cyl + cover_rect_y * chl;
-	double rr = rx + cover_rect_w * cwl;
-	double rb = ry + cover_rect_h * chl;
+	double rx = cxl + shield_rect_x * cwl;
+	double ry = cyl + shield_rect_y * chl;
+	double rr = rx + shield_rect_w * cwl;
+	double rb = ry + shield_rect_h * chl;
 
 	struct Rect { double x1, y1, x2, y2; };
 	// Cover everything inside the video content rectangle except the reveal rect
@@ -188,8 +188,8 @@ void VideoDisplay::RenderDraftCover(int, int) {
 	int effect = (int)OPT_GET(OPT_EFFECT)->GetInt();
 	bool textured = effect != 0;
 	if (textured) {
-		RebuildCoverTextureIfNeeded();
-		textured = cover_tex != 0 && cover_pw > 0;
+		RebuildShieldTextureIfNeeded();
+		textured = shield_tex != 0 && shield_pw > 0;
 	}
 
 	glDisable(GL_BLEND);
@@ -208,7 +208,7 @@ void VideoDisplay::RenderDraftCover(int, int) {
 	}
 	else {
 		glEnable(GL_TEXTURE_2D);
-		glBindTexture(GL_TEXTURE_2D, cover_tex);
+		glBindTexture(GL_TEXTURE_2D, shield_tex);
 		GLint filter = effect == 1 ? GL_NEAREST : GL_LINEAR;
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
@@ -245,7 +245,7 @@ void VideoDisplay::RenderDraftCover(int, int) {
 	glLineWidth(1.0f);
 }
 
-bool VideoDisplay::HandleDraftCoverMouse(wxMouseEvent &event) {
+bool VideoDisplay::HandleSpoilerShieldMouse(wxMouseEvent &event) {
 	if (!content_width || !content_height) return true;
 
 	double sf = scale_factor ? scale_factor : 1.0;
@@ -258,69 +258,69 @@ bool VideoDisplay::HandleDraftCoverMouse(wxMouseEvent &event) {
 	double px = (double)event.GetX();
 	double py = (double)event.GetY();
 
-	double rx = cxl + cover_rect_x * cwl;
-	double ry = cyl + cover_rect_y * chl;
-	double rr = rx + cover_rect_w * cwl;
-	double rb = ry + cover_rect_h * chl;
+	double rx = cxl + shield_rect_x * cwl;
+	double ry = cyl + shield_rect_y * chl;
+	double rr = rx + shield_rect_w * cwl;
+	double rb = ry + shield_rect_h * chl;
 
 	const double handle = 10.0;
 	const double minw = 0.03, minh = 0.03;
 
 	if (event.LeftDown()) {
 		if (std::abs(px - rx) <= handle && std::abs(py - ry) <= handle)
-			cover_drag = CoverDrag::TL;
+			shield_drag = ShieldDrag::TL;
 		else if (std::abs(px - rr) <= handle && std::abs(py - ry) <= handle)
-			cover_drag = CoverDrag::TR;
+			shield_drag = ShieldDrag::TR;
 		else if (std::abs(px - rx) <= handle && std::abs(py - rb) <= handle)
-			cover_drag = CoverDrag::BL;
+			shield_drag = ShieldDrag::BL;
 		else if (std::abs(px - rr) <= handle && std::abs(py - rb) <= handle)
-			cover_drag = CoverDrag::BR;
+			shield_drag = ShieldDrag::BR;
 		else if (px >= rx && px <= rr && py >= ry && py <= rb) {
-			cover_drag = CoverDrag::Move;
-			cover_drag_last = Vector2D(px, py);
+			shield_drag = ShieldDrag::Move;
+			shield_drag_last = Vector2D(px, py);
 		}
 		else
-			cover_drag = CoverDrag::None;
+			shield_drag = ShieldDrag::None;
 
-		if (cover_drag != CoverDrag::None && !HasCapture())
+		if (shield_drag != ShieldDrag::None && !HasCapture())
 			CaptureMouse();
 		return true;
 	}
 
-	if (event.Dragging() && event.LeftIsDown() && cover_drag != CoverDrag::None) {
-		if (cover_drag == CoverDrag::Move) {
-			double dx = (px - cover_drag_last.X()) / cwl;
-			double dy = (py - cover_drag_last.Y()) / chl;
-			cover_rect_x = std::clamp(cover_rect_x + dx, 0.0, 1.0 - cover_rect_w);
-			cover_rect_y = std::clamp(cover_rect_y + dy, 0.0, 1.0 - cover_rect_h);
-			cover_drag_last = Vector2D(px, py);
+	if (event.Dragging() && event.LeftIsDown() && shield_drag != ShieldDrag::None) {
+		if (shield_drag == ShieldDrag::Move) {
+			double dx = (px - shield_drag_last.X()) / cwl;
+			double dy = (py - shield_drag_last.Y()) / chl;
+			shield_rect_x = std::clamp(shield_rect_x + dx, 0.0, 1.0 - shield_rect_w);
+			shield_rect_y = std::clamp(shield_rect_y + dy, 0.0, 1.0 - shield_rect_h);
+			shield_drag_last = Vector2D(px, py);
 		}
 		else {
 			double nx = std::clamp((px - cxl) / cwl, 0.0, 1.0);
 			double ny = std::clamp((py - cyl) / chl, 0.0, 1.0);
-			double x1 = cover_rect_x, y1 = cover_rect_y;
-			double x2 = cover_rect_x + cover_rect_w, y2 = cover_rect_y + cover_rect_h;
-			switch (cover_drag) {
-				case CoverDrag::TL: x1 = std::min(nx, x2 - minw); y1 = std::min(ny, y2 - minh); break;
-				case CoverDrag::TR: x2 = std::max(nx, x1 + minw); y1 = std::min(ny, y2 - minh); break;
-				case CoverDrag::BL: x1 = std::min(nx, x2 - minw); y2 = std::max(ny, y1 + minh); break;
-				case CoverDrag::BR: x2 = std::max(nx, x1 + minw); y2 = std::max(ny, y1 + minh); break;
+			double x1 = shield_rect_x, y1 = shield_rect_y;
+			double x2 = shield_rect_x + shield_rect_w, y2 = shield_rect_y + shield_rect_h;
+			switch (shield_drag) {
+				case ShieldDrag::TL: x1 = std::min(nx, x2 - minw); y1 = std::min(ny, y2 - minh); break;
+				case ShieldDrag::TR: x2 = std::max(nx, x1 + minw); y1 = std::min(ny, y2 - minh); break;
+				case ShieldDrag::BL: x1 = std::min(nx, x2 - minw); y2 = std::max(ny, y1 + minh); break;
+				case ShieldDrag::BR: x2 = std::max(nx, x1 + minw); y2 = std::max(ny, y1 + minh); break;
 				default: break;
 			}
-			cover_rect_x = std::clamp(x1, 0.0, 1.0);
-			cover_rect_y = std::clamp(y1, 0.0, 1.0);
-			cover_rect_w = std::clamp(x2 - cover_rect_x, minw, 1.0 - cover_rect_x);
-			cover_rect_h = std::clamp(y2 - cover_rect_y, minh, 1.0 - cover_rect_y);
+			shield_rect_x = std::clamp(x1, 0.0, 1.0);
+			shield_rect_y = std::clamp(y1, 0.0, 1.0);
+			shield_rect_w = std::clamp(x2 - shield_rect_x, minw, 1.0 - shield_rect_x);
+			shield_rect_h = std::clamp(y2 - shield_rect_y, minh, 1.0 - shield_rect_y);
 		}
 		Render();
 		return true;
 	}
 
 	if (event.LeftUp()) {
-		if (cover_drag != CoverDrag::None) {
-			cover_drag = CoverDrag::None;
+		if (shield_drag != ShieldDrag::None) {
+			shield_drag = ShieldDrag::None;
 			if (HasCapture()) ReleaseMouse();
-			PersistDraftCoverRect();
+			PersistSpoilerShieldRect();
 		}
 		return true;
 	}
