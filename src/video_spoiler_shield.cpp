@@ -203,17 +203,16 @@ void VideoDisplay::RebuildShieldTextureIfNeeded() {
 }
 
 void VideoDisplay::RenderSpoilerShield() {
-	if (!content_width || !content_height) return;
+	spoiler::WindowRect video;
+	if (!ShieldVideoWindow(&video)) return;
 
-	double sf = scale_factor ? scale_factor : 1.0;
-	double cxl = content_left / sf;
-	double cyl = content_top / sf;
-	double cwl = content_width / sf;
-	double chl = content_height / sf;
-	double cright = cxl + cwl;
-	double cbottom = cyl + chl;
+	double cxl = video.left;
+	double cyl = video.top;
+	double cwl = video.Width();
+	double chl = video.Height();
+	double cright = video.right;
+	double cbottom = video.bottom;
 
-	spoiler::WindowRect video{cxl, cyl, cright, cbottom};
 	spoiler::WindowRect reveal = spoiler::ToWindow(shield_rect, video);
 
 	struct Rect { double x1, y1, x2, y2; };
@@ -303,7 +302,7 @@ void VideoDisplay::RenderSpoilerShield() {
 	while (glGetError() != GL_NO_ERROR) {}
 }
 
-bool VideoDisplay::ShieldRectWindow(spoiler::WindowRect *rect) const {
+bool VideoDisplay::ShieldVideoWindow(spoiler::WindowRect *rect) const {
 	if (!content_width || !content_height) return false;
 
 	double sf = scale_factor ? scale_factor : 1.0;
@@ -311,8 +310,15 @@ bool VideoDisplay::ShieldRectWindow(spoiler::WindowRect *rect) const {
 	double chl = content_height / sf;
 	if (cwl <= 0 || chl <= 0) return false;
 
-	spoiler::WindowRect video{content_left / sf, content_top / sf,
-		content_left / sf + cwl, content_top / sf + chl};
+	double left = content_left / sf;
+	double top = content_top / sf;
+	*rect = {left, top, left + cwl, top + chl};
+	return true;
+}
+
+bool VideoDisplay::ShieldRectWindow(spoiler::WindowRect *rect) const {
+	spoiler::WindowRect video;
+	if (!ShieldVideoWindow(&video)) return false;
 	*rect = spoiler::ToWindow(shield_rect, video);
 	return true;
 }
@@ -367,17 +373,20 @@ void VideoDisplay::HandleSpoilerShieldMouse(wxMouseEvent &event) {
 	}
 
 	if (event.Dragging() && event.LeftIsDown() && shield_drag != spoiler::Grab::Outside) {
+		// Both moving and resizing are expressed relative to the video area. Using
+		// the reveal rectangle here would feed its own previous size back into the
+		// calculation and make the box jump around while dragging.
+		spoiler::WindowRect video;
+		if (!ShieldVideoWindow(&video)) return;
+
 		if (shield_drag == spoiler::Grab::Move) {
-			double sf = scale_factor ? scale_factor : 1.0;
-			double cwl = content_width / sf;
-			double chl = content_height / sf;
 			spoiler::Move(shield_rect,
-				(px - shield_drag_last.X()) / cwl,
-				(py - shield_drag_last.Y()) / chl);
+				(px - shield_drag_last.X()) / video.Width(),
+				(py - shield_drag_last.Y()) / video.Height());
 			shield_drag_last = Vector2D(px, py);
 		}
 		else {
-			spoiler::Resize(shield_rect, shield_drag, window, px, py);
+			spoiler::Resize(shield_rect, shield_drag, video, px, py);
 		}
 		Render();
 		return;

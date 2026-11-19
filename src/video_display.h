@@ -173,6 +173,8 @@ class VideoDisplay final : public wxGLCanvas {
 	void RenderSpoilerShield();
 	/// Handle mouse input for the reveal rectangle
 	void HandleSpoilerShieldMouse(wxMouseEvent &event);
+	/// Video content rectangle in window (logical pixel) coordinates
+	bool ShieldVideoWindow(spoiler::WindowRect *rect) const;
 	/// Reveal rectangle in window (logical pixel) coordinates; false if there is no video
 	bool ShieldRectWindow(spoiler::WindowRect *rect) const;
 	/// Which part of the reveal rectangle the point grabs for dragging
