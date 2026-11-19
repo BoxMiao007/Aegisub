@@ -19,8 +19,8 @@
 /// @ingroup video main_ui
 ///
 /// The spoiler shield lets a user time/typeset subtitles without watching the
-/// picture. Everything in the video content rectangle is hidden (solid, mosaic
-/// or blur) except a single normalized reveal rectangle that the user can move
+/// picture. Everything in the video content rectangle is hidden (solid colour
+/// or mosaic) except a single normalized reveal rectangle that the user can move
 /// and resize. Because subtitles are burned into the video frame by the async
 /// provider before it reaches the display, hiding the frame also hides them.
 /// This only affects the on-screen preview; exports keep the original picture.
@@ -49,7 +49,6 @@ namespace {
 const char *OPT_ENABLED = "Video/Spoiler Shield/Enabled";
 const char *OPT_EFFECT = "Video/Spoiler Shield/Effect";
 const char *OPT_COLOR = "Video/Spoiler Shield/Color";
-const char *OPT_BLUR = "Video/Spoiler Shield/Blur Strength";
 const char *OPT_MOSAIC = "Video/Spoiler Shield/Mosaic Block";
 const char *OPT_RECT = "Video/Spoiler Shield/Reveal Rect";
 
@@ -64,6 +63,11 @@ bool VideoDisplay::SpoilerShieldOn() const {
 }
 
 void VideoDisplay::ReloadSpoilerShieldRect() {
+	// Effect 2 used to mean the removed blur mode; fall back to the solid fill.
+	int effect = (int)OPT_GET(OPT_EFFECT)->GetInt();
+	if (effect != 0 && effect != 1)
+		OPT_SET(OPT_EFFECT)->SetInt(0);
+
 	double x = DEFAULT_X, y = DEFAULT_Y, w = DEFAULT_W, h = DEFAULT_H;
 	std::string s = OPT_GET(OPT_RECT)->GetString();
 	if (std::sscanf(s.c_str(), "%lf,%lf,%lf,%lf", &x, &y, &w, &h) != 4) {
@@ -97,13 +101,10 @@ void VideoDisplay::ResetSpoilerShieldRect() {
 void VideoDisplay::RebuildShieldTextureIfNeeded() {
 	if (!shield_src) return;
 
-	int effect = (int)OPT_GET(OPT_EFFECT)->GetInt();
-	if (effect == 0) return; // solid fill needs no texture
+	// Only the mosaic needs a texture; the solid fill is drawn in flat colour.
+	if (OPT_GET(OPT_EFFECT)->GetInt() != 1) return;
 
-	int block = effect == 1
-		? (int)OPT_GET(OPT_MOSAIC)->GetInt()
-		: (int)OPT_GET(OPT_BLUR)->GetInt();
-	block = std::clamp(block, 2, 128);
+	int block = std::clamp((int)OPT_GET(OPT_MOSAIC)->GetInt(), 2, 128);
 
 	VideoFrame const& f = *shield_src;
 	int pw = std::max(1, (f.width + block - 1) / block);
@@ -115,9 +116,9 @@ void VideoDisplay::RebuildShieldTextureIfNeeded() {
 		|| (int)shield_pixels.size() != pw * ph * 4;
 	if (!rebuild) return;
 
-	// Box-average each block into one RGBA texel. Averaging (rather than point
-	// sampling) makes the downsampled image usable for both mosaic (nearest
-	// upscale -> crisp blocks) and blur (linear upscale -> soft image).
+	// Box-average each block into one RGBA texel and upscale it with nearest
+	// neighbour filtering, so every block becomes one crisp colour square.
+	// Averaging keeps a block's colour stable while the frame changes.
 	shield_pixels.assign((size_t)pw * ph * 4, 255);
 	for (int oy = 0; oy < ph; ++oy) {
 		int py0 = oy * block;
@@ -185,8 +186,7 @@ void VideoDisplay::RenderSpoilerShield(int, int) {
 		{ rr, std::max(cyl, ry), cright, std::min(cbottom, rb) },    // right
 	};
 
-	int effect = (int)OPT_GET(OPT_EFFECT)->GetInt();
-	bool textured = effect != 0;
+	bool textured = OPT_GET(OPT_EFFECT)->GetInt() == 1;
 	if (textured) {
 		RebuildShieldTextureIfNeeded();
 		textured = shield_tex != 0 && shield_pw > 0;
@@ -209,9 +209,8 @@ void VideoDisplay::RenderSpoilerShield(int, int) {
 	else {
 		glEnable(GL_TEXTURE_2D);
 		glBindTexture(GL_TEXTURE_2D, shield_tex);
-		GLint filter = effect == 1 ? GL_NEAREST : GL_LINEAR;
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glColor3ub(255, 255, 255);
 		glBegin(GL_QUADS);
 		for (auto& r : rects) {

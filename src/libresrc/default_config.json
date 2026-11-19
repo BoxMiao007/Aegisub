@@ -637,7 +637,6 @@
 			"Enabled" : false,
 			"Effect" : 0,
 			"Color" : "rgb(64, 64, 64)",
-			"Blur Strength" : 8,
 			"Mosaic Block" : 16,
 			"Reveal Rect" : "0.1,0.68,0.8,0.26"
 		},

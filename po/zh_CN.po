@@ -7542,20 +7542,8 @@ msgid "Mosaic"
 msgstr "马赛克"
 
 #: ../src/command/video.cpp
-msgid "Pixelate the hidden area (strength is adjustable)"
-msgstr "将被遮挡区域像素化（强度可调）"
-
-#: ../src/command/video.cpp
-msgid "&Blur"
-msgstr "模糊(&B)"
-
-#: ../src/command/video.cpp
-msgid "Blur"
-msgstr "模糊"
-
-#: ../src/command/video.cpp
-msgid "Blur the hidden area (strength is adjustable)"
-msgstr "模糊被遮挡区域（强度可调）"
+msgid "Pixelate the hidden area (block size is adjustable)"
+msgstr "将被遮挡区域像素化（块大小可调）"
 
 #: ../src/command/video.cpp
 msgid "&Colour..."
@@ -7570,24 +7558,20 @@ msgid "Choose the colour used by the solid fill"
 msgstr "选择纯色填充使用的颜色"
 
 #: ../src/command/video.cpp
-msgid "&Strength..."
-msgstr "强度(&S)..."
+msgid "Mosaic &Strength..."
+msgstr "马赛克强度(&S)..."
 
 #: ../src/command/video.cpp
-msgid "Strength..."
-msgstr "强度..."
+msgid "Mosaic Strength..."
+msgstr "马赛克强度..."
 
 #: ../src/command/video.cpp
-msgid "Adjust the blur or mosaic strength of the hidden area"
-msgstr "调整被遮挡区域的模糊或马赛克强度"
+msgid "Adjust the mosaic block size used to hide the area"
+msgstr "调整遮挡区域使用的马赛克块大小"
 
 #: ../src/command/video.cpp
 msgid "Mosaic Strength"
 msgstr "马赛克强度"
-
-#: ../src/command/video.cpp
-msgid "Blur Strength"
-msgstr "模糊强度"
 
 #: ../src/command/video.cpp
 msgid "&Reset Reveal Area"
@@ -7598,5 +7582,5 @@ msgid "Reset Reveal Area"
 msgstr "重置取景窗"
 
 #: ../src/command/video.cpp
-msgid "Reset the revealed area to its default position"
+msgid "Reset the reveal area to its default position and size"
 msgstr "把取景窗恢复到默认位置和大小"

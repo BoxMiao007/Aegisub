@@ -832,20 +832,10 @@ struct video_spoiler_shield_mosaic final : public validator_video_loaded {
 	CMD_NAME("video/spoiler_shield/effect/mosaic")
 	STR_MENU("&Mosaic")
 	STR_DISP("Mosaic")
-	STR_HELP("Pixelate the hidden area (strength is adjustable)")
+	STR_HELP("Pixelate the hidden area (block size is adjustable)")
 	CMD_TYPE(COMMAND_VALIDATE | COMMAND_RADIO)
 	bool IsActive(const agi::Context *) override { return OPT_GET("Video/Spoiler Shield/Effect")->GetInt() == 1; }
 	void operator()(agi::Context *c) override { OPT_SET("Video/Spoiler Shield/Effect")->SetInt(1); c->videoDisplay->Render(); }
-};
-
-struct video_spoiler_shield_blur final : public validator_video_loaded {
-	CMD_NAME("video/spoiler_shield/effect/blur")
-	STR_MENU("&Blur")
-	STR_DISP("Blur")
-	STR_HELP("Blur the hidden area (strength is adjustable)")
-	CMD_TYPE(COMMAND_VALIDATE | COMMAND_RADIO)
-	bool IsActive(const agi::Context *) override { return OPT_GET("Video/Spoiler Shield/Effect")->GetInt() == 2; }
-	void operator()(agi::Context *c) override { OPT_SET("Video/Spoiler Shield/Effect")->SetInt(2); c->videoDisplay->Render(); }
 };
 
 struct video_spoiler_shield_color final : public validator_video_loaded {
@@ -867,28 +857,19 @@ struct video_spoiler_shield_color final : public validator_video_loaded {
 
 struct video_spoiler_shield_strength final : public validator_video_loaded {
 	CMD_NAME("video/spoiler_shield/strength")
-	STR_MENU("&Strength...")
-	STR_DISP("Strength...")
-	STR_HELP("Adjust the blur or mosaic strength of the hidden area")
+	STR_MENU("Mosaic &Strength...")
+	STR_DISP("Mosaic Strength...")
+	STR_HELP("Adjust the mosaic block size used to hide the area")
 	CMD_TYPE(COMMAND_VALIDATE)
 
 	bool Validate(const agi::Context *c) override {
-		return validator_video_loaded::Validate(c) && OPT_GET("Video/Spoiler Shield/Effect")->GetInt() != 0;
+		return validator_video_loaded::Validate(c) && OPT_GET("Video/Spoiler Shield/Effect")->GetInt() == 1;
 	}
 	void operator()(agi::Context *c) override {
-		if (OPT_GET("Video/Spoiler Shield/Effect")->GetInt() == 1) {
-			SpoilerShieldStrengthDialog dialog(c->parent, _("Mosaic Strength"), (int)OPT_GET("Video/Spoiler Shield/Mosaic Block")->GetInt(), 2, 96);
-			if (dialog.ShowModal() == wxID_OK) {
-				OPT_SET("Video/Spoiler Shield/Mosaic Block")->SetInt(dialog.GetStrength());
-				c->videoDisplay->Render();
-			}
-		}
-		else {
-			SpoilerShieldStrengthDialog dialog(c->parent, _("Blur Strength"), (int)OPT_GET("Video/Spoiler Shield/Blur Strength")->GetInt(), 2, 48);
-			if (dialog.ShowModal() == wxID_OK) {
-				OPT_SET("Video/Spoiler Shield/Blur Strength")->SetInt(dialog.GetStrength());
-				c->videoDisplay->Render();
-			}
+		SpoilerShieldStrengthDialog dialog(c->parent, _("Mosaic Strength"), (int)OPT_GET("Video/Spoiler Shield/Mosaic Block")->GetInt(), 2, 96);
+		if (dialog.ShowModal() == wxID_OK) {
+			OPT_SET("Video/Spoiler Shield/Mosaic Block")->SetInt(dialog.GetStrength());
+			c->videoDisplay->Render();
 		}
 	}
 };
@@ -897,7 +878,7 @@ struct video_spoiler_shield_reset final : public validator_video_loaded {
 	CMD_NAME("video/spoiler_shield/reset")
 	STR_MENU("&Reset Reveal Area")
 	STR_DISP("Reset Reveal Area")
-	STR_HELP("Reset the revealed area to its default position")
+	STR_HELP("Reset the reveal area to its default position and size")
 	CMD_TYPE(COMMAND_VALIDATE)
 	void operator()(agi::Context *c) override {
 		c->videoDisplay->ResetSpoilerShieldRect();
@@ -921,7 +902,6 @@ namespace cmd {
 		reg(std::make_unique<video_spoiler_shield>());
 		reg(std::make_unique<video_spoiler_shield_solid>());
 		reg(std::make_unique<video_spoiler_shield_mosaic>());
-		reg(std::make_unique<video_spoiler_shield_blur>());
 		reg(std::make_unique<video_spoiler_shield_color>());
 		reg(std::make_unique<video_spoiler_shield_strength>());
 		reg(std::make_unique<video_spoiler_shield_reset>());

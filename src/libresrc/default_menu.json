@@ -171,7 +171,6 @@
         {},
         { "command" : "video/spoiler_shield/effect/solid" },
         { "command" : "video/spoiler_shield/effect/mosaic" },
-        { "command" : "video/spoiler_shield/effect/blur" },
         {},
         { "command" : "video/spoiler_shield/color" },
         { "command" : "video/spoiler_shield/strength" },
