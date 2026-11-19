@@ -44,7 +44,9 @@
 #include <algorithm>
 #include <clocale>
 #include <functional>
+#include <wx/filename.h>
 #include <wx/intl.h>
+#include <wx/stdpaths.h>
 #include <wx/choicdlg.h> // Keep this last so wxUSE_CHOICEDLG is set.
 
 #ifndef AEGISUB_CATALOG
@@ -56,6 +58,10 @@ wxTranslations *AegisubLocale::GetTranslations() {
 	if (!translations) {
 		wxTranslations::Set(translations = new wxTranslations);
 		wxFileTranslationsLoader::AddCatalogLookupPathPrefix(config::path->Decode("?data/locale/").wstring());
+		// Also look in a `locale` directory next to the executable, so uninstalled
+		// and portable/dev builds can find compiled translations without installing.
+		wxString exe_locale = wxFileName(wxStandardPaths::Get().GetExecutablePath()).GetPath() + "/locale/";
+		wxFileTranslationsLoader::AddCatalogLookupPathPrefix(exe_locale);
 #if !defined(_WIN32) && !defined(__APPLE__) && !defined(APPIMAGE_BUILD)
 		wxFileTranslationsLoader::AddCatalogLookupPathPrefix(P_LOCALE);
 #endif

@@ -203,6 +203,22 @@ void VideoDisplay::Render() try {
 	// Tool initialization can synchronously reenter Render through layout.
 	if (render_failed) return;
 
+	// The default crosshair visual tool blanks the OS cursor and draws its own
+	// crosshair instead. While the draft cover is on that tool is paused, so we
+	// restore a visible pointer; restore the tool's cursor when it is turned off.
+	// This must run after the tool is created, as its constructor sets the blank
+	// cursor and would otherwise override us on the first render.
+	bool want_cover = DraftCoverOn();
+	if (want_cover && !cover_cursor_active) {
+		cover_saved_cursor = GetCursor();
+		SetCursor(wxCursor(wxCURSOR_ARROW));
+		cover_cursor_active = true;
+	}
+	else if (!want_cover && cover_cursor_active) {
+		SetCursor(cover_saved_cursor);
+		cover_cursor_active = false;
+	}
+
 	try {
 		if (pending_frame) {
 			videoOut->UploadFrameData(*pending_frame);
@@ -657,6 +673,10 @@ Vector2D VideoDisplay::GetMousePosition() const {
 void VideoDisplay::Unload() {
 	if (glContext) {
 		SetCurrent(*glContext);
+	}
+	if (cover_cursor_active) {
+		SetCursor(cover_saved_cursor);
+		cover_cursor_active = false;
 	}
 	if (cover_tex) {
 		glDeleteTextures(1, &cover_tex);

@@ -42,6 +42,7 @@
 #include <memory>
 #include <typeinfo>
 #include <vector>
+#include <wx/cursor.h>
 #include <wx/glcanvas.h>
 
 // Prototypes
@@ -132,6 +133,9 @@ class VideoDisplay final : public wxGLCanvas {
 	/// Current drag interaction on the reveal rectangle
 	enum class CoverDrag { None, Move, TL, TR, BL, BR } cover_drag = CoverDrag::None;
 	Vector2D cover_drag_last;
+	/// Cursor to restore after the draft cover overrides the tool's blank cursor
+	wxCursor cover_saved_cursor;
+	bool cover_cursor_active = false;
 
 	/// The active visual typesetting tool
 	std::unique_ptr<VisualToolBase> tool;
