@@ -46,11 +46,13 @@
 #include "include/aegisub/menu.h"
 #include "options.h"
 #include "project.h"
+#include "spoiler_shield_options.h"
 #include "spline_curve.h"
 #include "utils.h"
 #include "video_out_gl.h"
 #include "video_controller.h"
 #include "visual_tool.h"
+#include "visual_tool_cross.h"
 
 
 #include <algorithm>
@@ -124,6 +126,30 @@ VideoDisplay::VideoDisplay(wxToolBar *toolbar, bool freeSize, wxComboBox *zoomBo
 		con->videoController->AddARChangeListener(&VideoDisplay::FitClientSizeToVideo, this),
 	});
 
+	// Follow the spoiler shield settings here, not in the individual commands, so
+	// that every display (including a hidden embedded one while the video is
+	// detached) updates its cursor, tool suspension and picture together.
+	connections.push_back(OPT_SUB(spoiler::Enabled, [this] (agi::OptionValue const&) {
+		CancelSpoilerShieldDrag(true);
+		UpdateSpoilerShieldState();
+	}));
+	connections.push_back(OPT_SUB(spoiler::EffectKey, [this] (agi::OptionValue const&) {
+		shield_tex_dirty = true;
+		Render();
+	}));
+	connections.push_back(OPT_SUB(spoiler::Color, [this] (agi::OptionValue const&) {
+		Render();
+	}));
+	connections.push_back(OPT_SUB(spoiler::MosaicBlock, [this] (agi::OptionValue const&) {
+		shield_tex_dirty = true;
+		Render();
+	}));
+	connections.push_back(OPT_SUB(spoiler::RevealRect, [this] (agi::OptionValue const&) {
+		CancelSpoilerShieldDrag(false);
+		ReloadSpoilerShieldRect();
+		Render();
+	}));
+
 	if (!EnableTouchEvents(wxTOUCH_ZOOM_GESTURE)) {
 		LOG_E("video/display") << "Failed to enable touch events.";
 	}
@@ -142,6 +168,13 @@ VideoDisplay::VideoDisplay(wxToolBar *toolbar, bool freeSize, wxComboBox *zoomBo
 	Bind(wxEVT_MOTION, &VideoDisplay::OnMouseEvent, this);
 	Bind(wxEVT_MOUSEWHEEL, &VideoDisplay::OnMouseWheel, this);
 	Bind(wxEVT_GESTURE_ZOOM, &VideoDisplay::OnGestureZoom, this);
+	// If the system takes the mouse capture away mid-drag (alt-tab, another
+	// window grabbing it, ...) the reveal rectangle must not stay stuck in a
+	// dragging state with a stale grab.
+	Bind(wxEVT_MOUSE_CAPTURE_LOST, [this] (wxMouseCaptureLostEvent&) {
+		if (SpoilerShieldOn())
+			CancelSpoilerShieldDrag(true);
+	});
 
 	Bind(wxEVT_DPI_CHANGED, [this] (wxDPIChangedEvent &e) {
 		double new_zoom = windowZoomValue * GetContentScaleFactor() / scale_factor;
@@ -161,6 +194,13 @@ VideoDisplay::VideoDisplay(wxToolBar *toolbar, bool freeSize, wxComboBox *zoomBo
 	UpdateViewportSize(false, wxSize(1, 1));
 
 	ReloadSpoilerShieldRect();
+
+	// Start in the right state when the shield is already on: no visual tool and
+	// a normal pointer to drag the reveal rectangle with.
+	if (SpoilerShieldOn()) {
+		if (toolBar) toolBar->Enable(false);
+		SetCursor(wxCursor(wxCURSOR_ARROW));
+	}
 }
 
 VideoDisplay::~VideoDisplay () {
@@ -198,26 +238,10 @@ void VideoDisplay::Render() try {
 	if (!videoOut)
 		videoOut = std::make_unique<VideoOutGL>();
 
-	if (!tool)
+	if (!tool && !SpoilerShieldOn())
 		cmd::call("video/tool/cross", con);
 	// Tool initialization can synchronously reenter Render through layout.
 	if (render_failed) return;
-
-	// The default crosshair visual tool blanks the OS cursor and draws its own
-	// crosshair instead. While the spoiler shield is on that tool is paused, so we
-	// restore a visible pointer; restore the tool's cursor when it is turned off.
-	// This must run after the tool is created, as its constructor sets the blank
-	// cursor and would otherwise override us on the first render.
-	bool want_shield = SpoilerShieldOn();
-	if (want_shield && !shield_cursor_active) {
-		shield_saved_cursor = GetCursor();
-		SetCursor(wxCursor(wxCURSOR_ARROW));
-		shield_cursor_active = true;
-	}
-	else if (!want_shield && shield_cursor_active) {
-		SetCursor(shield_saved_cursor);
-		shield_cursor_active = false;
-	}
 
 	try {
 		if (pending_frame) {
@@ -274,7 +298,7 @@ void VideoDisplay::Render() try {
 	if (SpoilerShieldOn()) {
 		// While the spoiler shield is on the visual tools are paused; only the
 		// reveal rectangle is interactive.
-		RenderSpoilerShield(client_size.GetWidth(), client_size.GetHeight());
+		RenderSpoilerShield();
 	}
 	else if ((mouse_pos || !autohideTools->GetBool()) && tool)
 		tool->Draw();
@@ -288,6 +312,39 @@ catch (const agi::Exception &err) {
 	wxLogError(
 		fmt_tl("An error occurred trying to render the video frame on the screen.\nError message reported: %s",
 		err.GetMessage()));
+}
+
+void VideoDisplay::UpdateSpoilerShieldState() {
+	bool on = SpoilerShieldOn();
+
+	// A visual tool drag or hold may be in progress when the shield is toggled.
+	// Drop it (and its mouse capture) instead of leaving the tool half-dragged
+	// and uncoordinated behind the shield.
+	if (tool)
+		tool->AbortInteraction();
+	if (HasCapture())
+		ReleaseMouse();
+
+	// The subtoolbar buttons dispatch to the tool directly (and some also via
+	// keyboard commands), so disable the whole bar while the tools are paused.
+	if (toolBar)
+		toolBar->Enable(!on);
+
+	if (on) {
+		// The crosshair tool hides the OS cursor and draws its own; while it is
+		// paused show a normal pointer for dragging the reveal rectangle.
+		SetCursor(wxCursor(wxCURSOR_ARROW));
+	}
+	else {
+		if (!tool && IsShownOnScreen() && con->project->VideoProvider())
+			cmd::call("video/tool/cross", con);
+		if (ToolIsType(typeid(VisualToolCross)))
+			SetCursor(wxCursor(wxCURSOR_BLANK));
+		else
+			SetCursor(wxNullCursor);
+	}
+
+	Render();
 }
 
 void VideoDisplay::DrawOverscanMask(float horizontal_percent, float vertical_percent) const {
@@ -471,8 +528,13 @@ void VideoDisplay::OnMouseEvent(wxMouseEvent& event) {
 
 void VideoDisplay::OnMouseLeave(wxMouseEvent& event) {
 	mouse_pos = Vector2D();
-	if (SpoilerShieldOn())
-		SetCursor(wxCursor(wxCURSOR_ARROW));
+	if (SpoilerShieldOn()) {
+		// Hovering a handle may have left a resize cursor behind; fall back to the
+		// neutral pointer when the pointer leaves. An active drag keeps the mouse
+		// capture, so it is not cancelled and its cursor is left alone.
+		if (!HasCapture())
+			SetCursor(wxCursor(wxCURSOR_ARROW));
+	}
 	else if (tool)
 		tool->OnMouseEvent(event);
 }
@@ -669,17 +731,18 @@ bool VideoDisplay::ToolIsType(std::type_info const& type) const {
 }
 
 Vector2D VideoDisplay::GetMousePosition() const {
-	return last_mouse_pos ? tool->ToScriptCoords(last_mouse_pos) : last_mouse_pos;
+	return (last_mouse_pos && tool) ? tool->ToScriptCoords(last_mouse_pos) : last_mouse_pos;
 }
 
 void VideoDisplay::Unload() {
 	if (glContext) {
 		SetCurrent(*glContext);
 	}
-	if (shield_cursor_active) {
-		SetCursor(shield_saved_cursor);
-		shield_cursor_active = false;
-	}
+	if (tool)
+		tool->AbortInteraction();
+	if (HasCapture())
+		ReleaseMouse();
+	CancelSpoilerShieldDrag(false);
 	if (shield_tex) {
 		glDeleteTextures(1, &shield_tex);
 		shield_tex = 0;

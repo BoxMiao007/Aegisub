@@ -36,6 +36,7 @@
 
 #include <libaegisub/signal.h>
 
+#include "spoiler_shield_geometry.h"
 #include "vector2d.h"
 #include "visual_tool_vector_clip.h"
 
@@ -123,23 +124,21 @@ class VideoDisplay final : public wxGLCanvas {
 	std::vector<unsigned char> shield_pixels;
 	int shield_pw = 0;
 	int shield_ph = 0;
+	/// Power-of-two texture size the downsampled image is padded into
+	int shield_tex_w = 0;
+	int shield_tex_h = 0;
 	int shield_block = 0;
 	bool shield_tex_dirty = true;
+	/// A texture upload failed for the current frame; retried on the next frame
+	bool shield_tex_failed = false;
 	unsigned int shield_tex = 0;
 	/// Source frame kept so the shield texture can be rebuilt when the effect changes
 	std::shared_ptr<VideoFrame> shield_src;
 	/// Reveal rectangle in normalized video coordinates (0..1)
-	double shield_rect_x = 0.1, shield_rect_y = 0.68, shield_rect_w = 0.8, shield_rect_h = 0.26;
+	spoiler::Rect shield_rect;
 	/// Current drag interaction on the reveal rectangle: borders, corners or moving
-	enum class ShieldDrag {
-		None, Move,
-		Left, Right, Top, Bottom,
-		TL, TR, BL, BR
-	} shield_drag = ShieldDrag::None;
+	spoiler::Grab shield_drag = spoiler::Grab::Outside;
 	Vector2D shield_drag_last;
-	/// Cursor to restore after the spoiler shield overrides the tool's blank cursor
-	wxCursor shield_saved_cursor;
-	bool shield_cursor_active = false;
 
 	/// The active visual typesetting tool
 	std::unique_ptr<VisualToolBase> tool;
@@ -166,22 +165,24 @@ class VideoDisplay final : public wxGLCanvas {
 	void DrawOverscanMask(float horizontal_percent, float vertical_percent) const;
 
 	// --- Spoiler shield helpers ---
-	/// Whether the spoiler shield is currently enabled
-	bool SpoilerShieldOn() const;
 	/// (Re)load the reveal rectangle from the config
 	void ReloadSpoilerShieldRect();
 	/// Persist the reveal rectangle to the config
 	void PersistSpoilerShieldRect();
 	/// Draw the shield over the video, leaving only the reveal rectangle visible
-	void RenderSpoilerShield(int client_w, int client_h);
-	/// Handle mouse input for the reveal rectangle; returns true if consumed
-	bool HandleSpoilerShieldMouse(wxMouseEvent &event);
+	void RenderSpoilerShield();
+	/// Handle mouse input for the reveal rectangle
+	void HandleSpoilerShieldMouse(wxMouseEvent &event);
 	/// Reveal rectangle in window (logical pixel) coordinates; false if there is no video
-	bool ShieldRectWindow(double *x1, double *y1, double *x2, double *y2) const;
+	bool ShieldRectWindow(spoiler::WindowRect *rect) const;
 	/// Which part of the reveal rectangle the point grabs for dragging
-	ShieldDrag ShieldHitTest(double px, double py) const;
+	spoiler::Grab ShieldHitTest(double px, double py) const;
 	/// Match the mouse cursor to the current grab target under the pointer
 	void UpdateShieldCursor(double px, double py);
+	/// Cancel an in-flight drag, releasing mouse capture when one was active
+	void CancelSpoilerShieldDrag(bool persist = true);
+	/// Pause or resume visual tool interaction as the shield toggles
+	void UpdateSpoilerShieldState();
 	/// Rebuild the downsampled shield texture if the frame or strength changed
 	void RebuildShieldTextureIfNeeded();
 
@@ -278,6 +279,9 @@ public:
 	void ResetContentZoom();
 	bool IsContentZoomActive() { return contentZoomValue != 1 || pan_x != 0 || pan_y != 0; }
 
+	/// Whether the spoiler shield is currently enabled
+	bool SpoilerShieldOn() const;
+
 	/// Get the last seen position of the mouse in script coordinates
 	Vector2D GetMousePosition() const;
 
@@ -286,11 +290,11 @@ public:
 	/// @brief Reset the spoiler shield reveal rectangle to its default position and persist it
 	void ResetSpoilerShieldRect();
 
-	void SetSubTool(int subtool) const { tool->SetSubTool(subtool); };
+	void SetSubTool(int subtool) const { if (!SpoilerShieldOn() && tool) tool->SetSubTool(subtool); };
 
 	bool ToolIsType(std::type_info const& type) const;
 
-	int GetSubTool() const { return tool->GetSubTool(); };
+	int GetSubTool() const { return tool ? tool->GetSubTool() : 0; }
 
 	/// Discard all OpenGL state
 	void Unload();

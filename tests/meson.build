@@ -37,6 +37,7 @@ tests_src = [
     'tests/lua_lfs.cpp',
     'tests/mru.cpp',
     'tests/option.cpp',
+    'tests/spoiler_shield.cpp',
     'tests/path.cpp',
     'tests/signals.cpp',
     'tests/split.cpp',
