@@ -63,6 +63,8 @@ inline bool HasEdge(Grab grab, Grab edge) {
 	return (static_cast<unsigned>(grab) & static_cast<unsigned>(edge)) != 0;
 }
 
+/// Which border, corner or interior of the reveal rectangle (window
+/// coordinates) a pointer grabs.
 inline Grab HitTest(WindowRect const& r, double x, double y) {
 	constexpr double band = 8;
 	if (x < r.left - band || x > r.right + band || y < r.top - band || y > r.bottom + band)
@@ -81,6 +83,11 @@ inline void Move(Rect& r, double dx, double dy) {
 	r.y = std::clamp(r.y + dy, 0.0, 1.0 - r.h);
 }
 
+/// Resize the reveal rectangle by dragging one or more of its borders.
+/// @param video The video content rectangle in window coordinates. This must
+///              not be the reveal rectangle itself: using the box being
+///              resized as the reference makes every drag step feed its own
+///              previous size back in, which makes the box jump.
 inline void Resize(Rect& r, Grab grab, WindowRect const& video, double x, double y) {
 	auto resize_axis = [grab](double& pos, double& size, double pointer, double extent, Grab low, Grab high) {
 		double minimum = 24.0 / extent;
