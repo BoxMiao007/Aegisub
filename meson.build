@@ -105,9 +105,11 @@ endif
 
 conf = configuration_data()
 # The version declared above is that of the latest release this was built
-# from, or of the release being prepared
-aegisub_version = meson.project_version().split('.')
-assert(aegisub_version.length() == 3, 'The project version must be of the form X.Y.Z')
+# from, or of the release being prepared. Fork releases append a
+# "-fork.N[-pre.date]" suffix to the upstream X.Y.Z, so only the leading
+# X.Y.Z is used for the numeric version macros.
+aegisub_version = meson.project_version().split('-')[0].split('.')
+assert(aegisub_version.length() == 3, 'The project version must start with X.Y.Z')
 conf.set('AEGISUB_VERSION_MAJOR', aegisub_version[0].to_int())
 conf.set('AEGISUB_VERSION_MINOR', aegisub_version[1].to_int())
 conf.set('AEGISUB_VERSION_PATCH', aegisub_version[2].to_int())
