@@ -7504,3 +7504,83 @@ msgstr "音视频"
 #: ../packages/desktop/aegisub.metainfo.xml.in.in:51
 msgid "Audio timing"
 msgstr "音频时轴"
+
+#: ../src/command/video.cpp
+msgid "Spoiler &Shield"
+msgstr "防剧透遮罩(&S)"
+
+#: ../src/command/video.cpp
+msgid "&Spoiler Shield"
+msgstr "防剧透遮罩(&S)"
+
+#: ../src/command/video.cpp
+msgid "Spoiler Shield"
+msgstr "防剧透遮罩"
+
+#: ../src/command/video.cpp
+msgid "Cover the video with a blocking layer, showing only an adjustable window so you can work without watching the picture"
+msgstr "用遮挡层盖住视频画面，只留一个可调整的取景窗，让你不看画面也能工作"
+
+#: ../src/command/video.cpp
+msgid "&Solid Colour"
+msgstr "纯色填充(&S)"
+
+#: ../src/command/video.cpp
+msgid "Solid Colour"
+msgstr "纯色填充"
+
+#: ../src/command/video.cpp
+msgid "Fill the hidden area with a solid colour"
+msgstr "用纯色填满被遮挡的区域"
+
+#: ../src/command/video.cpp
+msgid "&Mosaic"
+msgstr "马赛克(&M)"
+
+#: ../src/command/video.cpp
+msgid "Mosaic"
+msgstr "马赛克"
+
+#: ../src/command/video.cpp
+msgid "Pixelate the hidden area (block size is adjustable)"
+msgstr "将被遮挡区域像素化（块大小可调）"
+
+#: ../src/command/video.cpp
+msgid "&Colour..."
+msgstr "颜色(&C)..."
+
+#: ../src/command/video.cpp
+msgid "Colour..."
+msgstr "颜色..."
+
+#: ../src/command/video.cpp
+msgid "Choose the colour used by the solid fill"
+msgstr "选择纯色填充使用的颜色"
+
+#: ../src/command/video.cpp
+msgid "Mosaic &Strength..."
+msgstr "马赛克强度(&S)..."
+
+#: ../src/command/video.cpp
+msgid "Mosaic Strength..."
+msgstr "马赛克强度..."
+
+#: ../src/command/video.cpp
+msgid "Adjust the mosaic block size used to hide the area"
+msgstr "调整遮挡区域使用的马赛克块大小"
+
+#: ../src/command/video.cpp
+msgid "Mosaic Strength"
+msgstr "马赛克强度"
+
+#: ../src/command/video.cpp
+msgid "&Reset Reveal Area"
+msgstr "重置取景窗(&R)"
+
+#: ../src/command/video.cpp
+msgid "Reset Reveal Area"
+msgstr "重置取景窗"
+
+#: ../src/command/video.cpp
+msgid "Reset the reveal area to its default position and size"
+msgstr "把取景窗恢复到默认位置和大小"

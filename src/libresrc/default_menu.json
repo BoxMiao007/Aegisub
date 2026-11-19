@@ -95,6 +95,7 @@
         { "submenu" : "main/video/set zoom", "text" : "Set &Zoom" },
         { "submenu" : "main/video/override ar", "text" : "Override &AR" },
         { "command" : "video/show_overscan" },
+        { "command" : "video/spoiler_shield" },
         { "command" : "video/reset_pan" },
         {},
         { "command" : "video/jump" },
@@ -161,6 +162,19 @@
         { "command" : "video/frame/copy/subs" },
         {},
         { "command" : "video/copy_coordinates" },
-        { "command" : "video/reset_pan" }
+        { "command" : "video/reset_pan" },
+        {},
+        { "submenu" : "video_context/spoiler_shield", "text" : "Spoiler &Shield" }
+    ],
+    "video_context/spoiler_shield" : [
+        { "command" : "video/spoiler_shield" },
+        {},
+        { "command" : "video/spoiler_shield/effect/solid" },
+        { "command" : "video/spoiler_shield/effect/mosaic" },
+        {},
+        { "command" : "video/spoiler_shield/color" },
+        { "command" : "video/spoiler_shield/strength" },
+        {},
+        { "command" : "video/spoiler_shield/reset" }
     ]
 }

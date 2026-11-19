@@ -633,6 +633,13 @@
 		"Last LayoutRes Mismatch Choice" : 0,
 		"Open Audio" : true,
 		"Overscan Mask" : false,
+		"Spoiler Shield" : {
+			"Enabled" : false,
+			"Effect" : 0,
+			"Color" : "rgb(64, 64, 64)",
+			"Mosaic Block" : 16,
+			"Reveal Rect" : "0.1,0.68,0.8,0.26"
+		},
 		"Provider" : "ffmpegsource",
 		"Slider" : {
 			"Fast Jump Step" : 10,
