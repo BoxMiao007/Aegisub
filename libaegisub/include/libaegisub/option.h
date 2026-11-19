@@ -15,6 +15,7 @@
 #pragma once
 
 #include <libaegisub/fs.h>
+#include <functional>
 #include <iosfwd>
 #include <map>
 #include <memory>
@@ -36,6 +37,13 @@ public:
 		FLUSH_SKIP = 0x001		///< Skip writing the config file to disk
 	};
 
+	/// Callback that may rewrite the option values read from the user profile
+	/// before they are merged with the defaults. Values not present in the
+	/// defaults are silently dropped by that merge, so any migration of
+	/// renamed or removed options has to happen here, while the old values are
+	/// still visible.
+	using ConfigMigrator = std::function<void(std::vector<std::unique_ptr<OptionValue>>&)>;
+
 private:
 	std::vector<std::unique_ptr<OptionValue>> values;
 
@@ -44,6 +52,9 @@ private:
 
 	/// Settings.
 	const OptionSetting setting;
+
+	/// Optional one-time migration applied to the actual user profile only.
+	ConfigMigrator config_migrator;
 
 	/// @brief Load a config file into the Options object.
 	/// @param stream Config to load.
@@ -75,6 +86,13 @@ public:
 	/// Set the user configuration file and read options from it, closes all
 	/// possible config file loading and sets the file to write to.
 	void ConfigUser();
+
+	/// @brief Install the legacy-option migration for the user profile.
+	/// The migration runs once, when ConfigUser() loads the actual user
+	/// profile, before values absent from the defaults are discarded. It is
+	/// never applied to the default config or to additional configs loaded
+	/// with ConfigNext(). Must be called before ConfigUser().
+	void SetConfigMigrator(ConfigMigrator migrator);
 
 	/// Write the user configuration to disk, throws an exception if something goes wrong.
 	void Flush() const;

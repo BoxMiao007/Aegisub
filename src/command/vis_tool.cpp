@@ -18,7 +18,9 @@
 
 #include "../include/aegisub/context.h"
 #include "../libresrc/libresrc.h"
+#include "../options.h"
 #include "../project.h"
+#include "../spoiler_shield_options.h"
 #include "../video_display.h"
 #include "../visual_tool_clip.h"
 #include "../visual_tool_cross.h"
@@ -37,7 +39,7 @@ namespace {
 		CMD_TYPE(COMMAND_VALIDATE | COMMAND_RADIO)
 
 		bool Validate(const agi::Context *c) override {
-			return !!c->project->VideoProvider();
+			return !!c->project->VideoProvider() && !OPT_GET(spoiler::Enabled)->GetBool();
 		}
 
 		bool IsActive(const agi::Context *c) override {
@@ -45,6 +47,10 @@ namespace {
 		}
 
 		void operator()(agi::Context *c) override {
+			// Toolbar radio buttons bypass Validate, so guard here too: the visual
+			// tools are paused while the spoiler shield is on.
+			if (OPT_GET(spoiler::Enabled)->GetBool())
+				return;
 			c->videoDisplay->SetTool(std::make_unique<T>(c->videoDisplay, c));
 		}
 	};
@@ -54,7 +60,7 @@ namespace {
 		CMD_TYPE(COMMAND_VALIDATE | COMMAND_RADIO)
 
 		bool Validate(const agi::Context *c) override {
-			return !!c->project->VideoProvider();
+			return !!c->project->VideoProvider() && !OPT_GET(spoiler::Enabled)->GetBool();
 		}
 
 		bool IsActive(const agi::Context *c) override {
@@ -62,6 +68,10 @@ namespace {
 		}
 
 		void operator()(agi::Context *c) override {
+			// Same as the plain tool commands: the subtoolbar dispatches directly,
+			// so refuse to activate while the shield pauses the visual tools.
+			if (OPT_GET(spoiler::Enabled)->GetBool())
+				return;
 			c->videoDisplay->SetTool(std::make_unique<VisualToolVectorClip>(c->videoDisplay, c));
 			c->videoDisplay->SetSubTool(M);
 		}

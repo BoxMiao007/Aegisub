@@ -83,6 +83,7 @@ void init_grid();
 void init_help();
 void init_keyframe();
 void init_recent();
+void init_spoiler_shield();
 void init_subtitle();
 void init_time();
 void init_timecode();
@@ -100,6 +101,7 @@ void init_builtin_commands() {
 	init_help();
 	init_keyframe();
 	init_recent();
+	init_spoiler_shield();
 	init_subtitle();
 	init_time();
 	init_timecode();

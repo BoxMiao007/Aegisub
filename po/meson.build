@@ -7,10 +7,23 @@ i18n = import('i18n')
 # Until a solution is found, POT updates should continue to use make_pot.sh.
 # Similarly, since meson insists on regenerating the POT file before updating
 # PO files, PO files should be updated using update_po.sh
-i18n.gettext('aegisub',
-             args: [
-                '-k_', '-kSTR_MENU', '-kSTR_DISP', '-kSTR_HELP', '-kCOMMAND_GROUP:5,',
-                '-kfmt_tl', '-kfmt_plural:2,3',
-                '--sort-by-file'
-             ],
-             install_dir: localedir)
+msgfmt = find_program('msgfmt', required: false)
+if msgfmt.found()
+    i18n.gettext('aegisub',
+                 args: [
+                    '-k_', '-kSTR_MENU', '-kSTR_DISP', '-kSTR_HELP', '-kCOMMAND_GROUP:5,',
+                    '-kfmt_tl', '-kfmt_plural:2,3',
+                    '--sort-by-file'
+                 ],
+                 install_dir: localedir)
+else
+    # Development and portable Windows builds commonly run without gettext.
+    # Compile the catalogs at install time so those builds still ship
+    # translations instead of silently dropping them.
+    warning('msgfmt not found; compiling translation catalogs with tools/po2mo.py at install time')
+    python = import('python').find_installation()
+    meson.add_install_script(
+        python,
+        meson.current_source_dir() / 'compile_catalogs.py',
+        get_option('localedir'))
+endif

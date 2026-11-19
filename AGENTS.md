@@ -57,7 +57,7 @@ Aegisub 是一款跨平台的高级字幕编辑器,供字幕制作与排版人�
 
 ## 分支模型
 
-- `master` 是集成分支:只接受两类提交——合并上游 `upstream/master`、合并功能分支。全局文档改动(如本文件)可直接提交在集成分支。
+- `master` 是集成分支:只接受两类提交——合并上游 `upstream/master`、合并功能分支。全局文档改动(如本文件)与发布配套改动(版本号提升、发布构建修复)可直接提交在集成分支。
 - 新功能一律在 `feat/<功能名>` 短命分支上开发,完成后合回集成分支。
 - 推送目标始终是 `origin`(自己的 fork),绝不向 `upstream` 推送。
 
@@ -103,7 +103,7 @@ fork 发布的版本号要能和上游区分。发布前先看上游最新 relea
 
 | 功能 | 一句话说明 | 关键文件/入口 | 引入提交 |
 | ---- | ---------- | -------------- | -------- |
-| 防剧透遮罩(Spoiler Shield) | 默认遮住视频预览(含烧录字幕),仅可调取景窗内正常显示画面;支持纯色/马赛克且马赛克块大小可调;取景窗四条边与四个角均可拖动缩放;仅影响预览,不影响导出 | src/video_spoiler_shield.cpp、src/video_display.*、src/command/video.cpp、default_toolbar/menu/config.json | 本功能提交 |
+| 防剧透遮罩(Spoiler Shield) | 默认遮住视频预览(含烧录字幕),仅可调取景窗内正常显示画面;支持纯色/马赛克且马赛克块大小可调;取景窗四条边与四个角均可拖动缩放;仅影响预览,不影响导出;旧版草稿图设置自动迁移 | src/video_spoiler_shield.cpp、src/video_display.*、src/command/spoiler_shield.cpp、src/spoiler_shield_options.h、default_toolbar/menu/config.json | ea49d4c65 |
 
 `README.md` 顶部的 `vibe-feature-registry` 标记块是本表给人看的镜像:登记/移除功能时,同一个动作里同步更新本表和该标记块,防止两处漂移。
 

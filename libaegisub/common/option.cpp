@@ -28,7 +28,9 @@
 #include <algorithm>
 #include <boost/interprocess/streams/bufferstream.hpp>
 #include <cassert>
+#include <functional>
 #include <memory>
+#include <utility>
 
 namespace {
 using namespace agi;
@@ -196,6 +198,10 @@ void Options::ConfigUser() {
 	}
 }
 
+void Options::SetConfigMigrator(ConfigMigrator migrator) {
+	config_migrator = std::move(migrator);
+}
+
 void Options::LoadConfig(std::istream& stream, bool ignore_errors) {
 	json::UnknownElement config_root;
 
@@ -216,6 +222,16 @@ void Options::LoadConfig(std::istream& stream, bool ignore_errors) {
 	if (new_values.empty()) return;
 
 	sort(begin(new_values), end(new_values), option_name_cmp());
+
+	// The merge below silently discards options that do not exist in the
+	// defaults, so the one-time migration of renamed/removed options has to run
+	// on the freshly-read values first. It only applies to the actual user
+	// profile: ignore_errors is set by ConfigUser() and never by the default
+	// config or ConfigNext(), and the migrator is idempotent.
+	if (ignore_errors && config_migrator) {
+		config_migrator(new_values);
+		sort(begin(new_values), end(new_values), option_name_cmp());
+	}
 
 	if (values.empty()) {
 		values = std::move(new_values);

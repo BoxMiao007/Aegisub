@@ -140,6 +140,13 @@ public:
 	/// Convert a point from script to video coordinates
 	Vector2D FromScriptCoords(Vector2D point) const;
 
+	/// @brief Abort any in-progress drag or hold without committing
+	///
+	/// Used when the display suspends the visual tools (spoiler shield on) or is
+	/// torn down while the user is still interacting, so no stale drag state or
+	/// mouse capture leaks across the suspension.
+	virtual void AbortInteraction() { holding = false; dragging = false; }
+
 	// Stuff called by VideoDisplay
 	virtual void OnMouseEvent(wxMouseEvent &event)=0;
 	virtual void Draw()=0;
@@ -202,6 +209,11 @@ public:
 	/// @brief Handler for all mouse events
 	/// @param event Shockingly enough, the mouse event
 	void OnMouseEvent(wxMouseEvent &event) override;
+
+	void AbortInteraction() override {
+		VisualToolBase::AbortInteraction();
+		active_feature = nullptr;
+	}
 
 	/// @brief Constructor
 	/// @param parent The VideoDisplay to use for coordinate conversion
