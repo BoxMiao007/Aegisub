@@ -7505,6 +7505,22 @@ msgstr "音视频"
 msgid "Audio timing"
 msgstr "音频时轴"
 
+#: ../src/video_box.cpp
+msgid "Subtitle masking unavailable; showing raw video."
+msgstr "预览无法按原排版遮字，已隐藏字幕层，仅显示视频画面。"
+
+#: ../src/command/grid.cpp
+msgid "&Mask Subtitle Text"
+msgstr "遮挡字幕文字(&M)"
+
+#: ../src/command/grid.cpp
+msgid "Mask Subtitle Text"
+msgstr "遮挡字幕文字"
+
+#: ../src/command/grid.cpp
+msgid "Hide dialogue text while keeping punctuation and ASS tags visible for proofreading"
+msgstr "遮挡台词，保留标点和 ASS 标签以便校对"
+
 #: ../src/command/video.cpp
 msgid "Spoiler &Shield"
 msgstr "防剧透遮罩(&S)"

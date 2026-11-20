@@ -159,6 +159,7 @@ class SubsEditBox final : public wxPanel {
 	void OnSize(wxSizeEvent &event);
 	void OnSplit(wxCommandEvent&);
 	void DoOnSplit(bool show_original);
+	void UpdateTextMask();
 
 	void SetPlaceholderCtrl(wxControl *ctrl, wxString const& value);
 
@@ -203,7 +204,7 @@ class SubsEditBox final : public wxPanel {
 	void SetDurationField();
 
 	SubsTextEditCtrl *edit_ctrl;
-	wxTextCtrl *secondary_editor;
+	wxStyledTextCtrl *secondary_editor;
 
 public:
 	/// @brief Constructor

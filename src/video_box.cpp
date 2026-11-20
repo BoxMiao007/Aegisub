@@ -46,6 +46,7 @@
 #include <wx/combobox.h>
 #include <wx/sizer.h>
 #include <wx/statline.h>
+#include <wx/stattext.h>
 #include <wx/textctrl.h>
 #include <wx/toolbar.h>
 
@@ -94,9 +95,12 @@ VideoBox::VideoBox(wxWindow *parent, bool isDetached, agi::Context *context)
 	VideoSizer->Add(new wxStaticLine(this), 0, wxEXPAND, 0);
 	VideoSizer->Add(videoSlider, 0, wxEXPAND, 0);
 	VideoSizer->Add(videoBottomSizer, 0, wxEXPAND | wxBOTTOM, 5);
+	mask_notice = new wxStaticText(this, wxID_ANY, _("Subtitle masking unavailable; showing raw video."));
+	VideoSizer->Add(mask_notice, 0, wxLEFT | wxRIGHT | wxBOTTOM, 5);
 	SetSizer(VideoSizer);
 
 	UpdateTimeBoxes();
+	UpdateMaskNotice();
 
 	connections = agi::signal::make_vector({
 		context->ass->AddCommitListener(&VideoBox::UpdateTimeBoxes, this),
@@ -105,7 +109,14 @@ VideoBox::VideoBox(wxWindow *parent, bool isDetached, agi::Context *context)
 		context->project->AddVideoProviderListener(&VideoBox::UpdateTimeBoxes, this),
 		context->selectionController->AddSelectionListener(&VideoBox::UpdateTimeBoxes, this),
 		context->videoController->AddSeekListener(&VideoBox::UpdateTimeBoxes, this),
+		context->project->AddVideoProviderListener(&VideoBox::UpdateMaskNotice, this),
+		OPT_SUB("Subtitle/Text Mask", &VideoBox::UpdateMaskNotice, this),
 	});
+}
+
+void VideoBox::UpdateMaskNotice() {
+	mask_notice->Show(context->project->VideoProvider() && OPT_GET("Subtitle/Text Mask")->GetBool());
+	Layout();
 }
 
 void VideoBox::UpdateTimeBoxes() {

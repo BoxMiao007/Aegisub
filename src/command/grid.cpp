@@ -247,6 +247,22 @@ struct grid_sort_style_selected final : public validate_sel_multiple {
 	}
 };
 
+struct mask_subtitle_text final : public Command {
+	CMD_NAME("subtitle/text_mask")
+	CMD_ICON(subtitle_text_mask)
+	STR_MENU("&Mask Subtitle Text")
+	STR_DISP("Mask Subtitle Text")
+	STR_HELP("Hide dialogue text while keeping punctuation and ASS tags visible for proofreading")
+	CMD_TYPE(COMMAND_TOGGLE)
+
+	bool IsActive(const agi::Context *) override {
+		return OPT_GET("Subtitle/Text Mask")->GetBool();
+	}
+	void operator()(agi::Context *c) override {
+		OPT_SET("Subtitle/Text Mask")->SetBool(!IsActive(c));
+	}
+};
+
 struct grid_tag_cycle_hiding final : public Command {
 	CMD_NAME("grid/tag/cycle_hiding")
 	CMD_ICON(toggle_tag_hiding)
@@ -420,6 +436,7 @@ namespace cmd {
 		reg(std::make_unique<grid_move_up>());
 		reg(std::make_unique<grid_swap>());
 		reg(std::make_unique<grid_tag_cycle_hiding>());
+		reg(std::make_unique<mask_subtitle_text>());
 		reg(std::make_unique<grid_tags_hide>());
 		reg(std::make_unique<grid_tags_show>());
 		reg(std::make_unique<grid_tags_simplify>());

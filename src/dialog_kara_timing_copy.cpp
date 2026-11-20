@@ -32,6 +32,7 @@
 #include "ass_file.h"
 #include "ass_karaoke.h"
 #include "compat.h"
+#include "drawn_text_mask.h"
 #include "help_button.h"
 #include "include/aegisub/context.h"
 #include "libresrc/libresrc.h"
@@ -152,7 +153,9 @@ int DrawBoxedText(wxDC &dc, wxString const& txt, int x, int y)
 	{
 		dc.GetTextExtent(txt, &tw, &th);
 		dc.DrawRectangle(x, y-2, tw+4, th+4);
-		dc.DrawText(txt, x+2, y);
+		if (OPT_GET("Subtitle/Text Mask")->GetBool())
+			subtitle_mask::Draw(dc, txt, x + 2, y, false);
+		else dc.DrawText(txt, x + 2, y);
 		return tw+3;
 	}
 }

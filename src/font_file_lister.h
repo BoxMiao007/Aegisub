@@ -31,6 +31,7 @@ class AssDialogue;
 class AssFile;
 
 typedef std::function<void (wxString, int)> FontCollectorStatusCallback;
+using FontGlyphWarning = std::function<void (wxString, wxString)>;
 
 struct CollectionResult {
 	/// Characters which could not be found in any font files
@@ -136,6 +137,7 @@ class FontCollector {
 	FontCollectorStatusCallback status_callback;
 
 	FontFileLister lister;
+	FontGlyphWarning glyph_warning;
 
 	/// The set of all glyphs used in the file
 	std::map<StyleInfo, UsageData> used_styles;
@@ -160,8 +162,8 @@ class FontCollector {
 public:
 	/// Constructor
 	/// @param status_callback Function to pass status updates to
-	/// @param lister The actual font file lister
-	FontCollector(FontCollectorStatusCallback status_callback);
+	/// @param glyph_warning 同一条缺字诊断的详细文本和无剧透摘要。
+	FontCollector(FontCollectorStatusCallback status_callback, FontGlyphWarning glyph_warning);
 
 	/// @brief Get a list of the locations of all font files used in the file
 	/// @param file Lines in the subtitle file to check

@@ -9,6 +9,7 @@
 | 功能 | 一句话说明 | 关键文件/入口 | 引入提交 |
 | ---- | ---------- | -------------- | -------- |
 | 防剧透遮罩(Spoiler Shield) | 默认遮住视频预览(含烧录字幕),仅可调取景窗内正常显示画面;支持纯色/马赛克且马赛克块大小可调;取景窗四条边与四个角均可拖动缩放;仅影响预览,不影响导出;旧版草稿图设置自动迁移 | src/video_spoiler_shield.cpp、src/video_display.*、src/command/spoiler_shield.cpp、src/spoiler_shield_options.h、default_toolbar/menu/config.json | ea49d4c65 |
+| 防剧透字幕文字遮挡(Subtitle Text Mask) | 工具栏/菜单开关；开启后网格、编辑区、原文对照、翻译助手、样式助手、拼写检查、卡拉 OK 与音频标注里的未注释台词只显示实心块，标点、空格、换行与 `{...}` 内容保持可见、位置不变；仍可盲改原文，搜索、复制、保存和导出都用真实台词；实时预览在遮挡模式下只显示原画面并提示；字幕文字识别、开关和视频代际已由单元测试覆盖 | src/dialogue_text_mask、src/drawn_text_mask.*、src/styled_text_mask.*、src/video_preview_mask.h、src/command/grid.cpp、default_toolbar/menu/config.json | 本次提交 |
 <!-- vibe-feature-registry:end -->
 
 # Aegisub

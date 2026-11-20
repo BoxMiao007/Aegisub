@@ -156,6 +156,8 @@ class VideoDisplay final : public wxGLCanvas {
 
 	/// Frame which will replace the currently visible frame on the next render
 	std::shared_ptr<VideoFrame> pending_frame;
+	bool waiting_preview = true;
+	void InvalidatePreview();
 
 	int scale_factor;
 

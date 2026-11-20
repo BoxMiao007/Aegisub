@@ -36,6 +36,7 @@
 #include "persist_location.h"
 #include "project.h"
 #include "subs_edit_ctrl.h"
+#include "styled_text_mask.h"
 #include "selection_controller.h"
 #include "video_controller.h"
 
@@ -156,6 +157,7 @@ DialogTranslation::DialogTranslation(agi::Context *c)
 	SetSizerAndFit(main_sizer);
 
 	persist = std::make_unique<PersistLocation>(this, "Tool/Translation Assistant");
+	mask_connection = OPT_SUB("Subtitle/Text Mask", [this](agi::OptionValue const&) { UpdateTextMask(); });
 
 	Bind(wxEVT_KEY_DOWN, &DialogTranslation::OnKeyDown, this);
 
@@ -191,6 +193,8 @@ void DialogTranslation::OnExternalCommit(int commit_type) {
 
 	if (commit_type & AssFile::COMMIT_DIAG_TEXT)
 		OnActiveLineChanged(active_line);
+	else if (commit_type & AssFile::COMMIT_DIAG_META)
+		UpdateTextMask();
 }
 
 bool DialogTranslation::NextBlock() {
@@ -235,6 +239,12 @@ bool DialogTranslation::PrevBlock() {
 	return true;
 }
 
+void DialogTranslation::UpdateTextMask() {
+	bool dialogue = active_line && !active_line->Comment;
+	subtitle_mask::Apply(*original_text, dialogue && OPT_GET("Subtitle/Text Mask")->GetBool());
+	translated_text->SetTextMaskAllowed(dialogue);
+}
+
 void DialogTranslation::UpdateDisplay() {
 	line_number_display->SetLabel(fmt_tl("Current line: %d/%d", active_line->Row, line_count));
 
@@ -261,6 +271,7 @@ void DialogTranslation::UpdateDisplay() {
 	if (seek_video->IsChecked()) c->videoController->JumpToTime(active_line->Start);
 
 	translated_text->ClearAll();
+	UpdateTextMask();
 	translated_text->SetFocus();
 }
 

@@ -49,6 +49,7 @@
 #include "project.h"
 #include "selection_controller.h"
 #include "subs_edit_ctrl.h"
+#include "styled_text_mask.h"
 #include "text_selection_controller.h"
 #include "timeedit_ctrl.h"
 #include "utils.h"
@@ -201,7 +202,10 @@ SubsEditBox::SubsEditBox(wxWindow *parent, agi::Context *context)
 	edit_ctrl = new SubsTextEditCtrl(this, FromDIP(wxSize(300,50)), wxBORDER_SUNKEN, c);
 	edit_ctrl->Bind(wxEVT_CHAR_HOOK, &SubsEditBox::OnKeyDown, this);
 
-	secondary_editor = new wxTextCtrl(this, -1, "", wxDefaultPosition, FromDIP(wxSize(300,50)), wxBORDER_SUNKEN | wxTE_MULTILINE | wxTE_READONLY);
+	secondary_editor = new wxStyledTextCtrl(this, -1, wxDefaultPosition, FromDIP(wxSize(300,50)), wxBORDER_SUNKEN);
+	secondary_editor->SetWrapMode(wxSTC_WRAP_WORD);
+	secondary_editor->SetMarginWidth(1, 0);
+	secondary_editor->SetReadOnly(true);
 
 	main_sizer->Add(secondary_editor,1,wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM,3);
 	main_sizer->Add(edit_ctrl,1,wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM,3);
@@ -237,6 +241,7 @@ SubsEditBox::SubsEditBox(wxWindow *parent, agi::Context *context)
 		context->selectionController->AddActiveLineListener(&SubsEditBox::OnActiveLineChanged, this),
 		context->selectionController->AddSelectionListener(&SubsEditBox::OnSelectedSetChanged, this),
 		context->initialLineState->AddChangeListener(&SubsEditBox::OnLineInitialTextChanged, this),
+		OPT_SUB("Subtitle/Text Mask", [this](agi::OptionValue const&) { UpdateTextMask(); }),
 	 });
 
 	context->textSelectionController->SetControl(edit_ctrl);
@@ -344,6 +349,7 @@ void SubsEditBox::OnCommit(int type) {
 
 void SubsEditBox::UpdateFields(int type, bool repopulate_lists) {
 	if (!line) return;
+	UpdateTextMask();
 
 	if (type & AssFile::COMMIT_DIAG_TIME) {
 		start_time->SetTime(line->Start);
@@ -416,8 +422,12 @@ void SubsEditBox::OnSelectedSetChanged() {
 }
 
 void SubsEditBox::OnLineInitialTextChanged(std::string const& new_text) {
-	if (split_box->IsChecked())
-		secondary_editor->SetValue(to_wx(new_text));
+	if (split_box->IsChecked()) {
+		secondary_editor->SetReadOnly(false);
+		secondary_editor->SetTextRaw(new_text.c_str());
+		secondary_editor->SetReadOnly(true);
+		UpdateTextMask();
+	}
 }
 
 void SubsEditBox::UpdateFrameTiming(agi::vfr::Framerate const& fps) {
@@ -589,8 +599,12 @@ void SubsEditBox::OnSplit(wxCommandEvent&) {
 
 void SubsEditBox::DoOnSplit(bool show_original) {
 	Freeze();
-	if (show_original)
-		secondary_editor->SetValue(to_wx(c->initialLineState->GetInitialText()));
+	if (show_original) {
+		secondary_editor->SetReadOnly(false);
+		secondary_editor->SetTextRaw(c->initialLineState->GetInitialText().c_str());
+		secondary_editor->SetReadOnly(true);
+	}
+	UpdateTextMask();
 
 	GetSizer()->Show(secondary_editor, show_original);
 	GetSizer()->Show(bottom_sizer, show_original);
@@ -599,6 +613,12 @@ void SubsEditBox::DoOnSplit(bool show_original) {
 	wxSizer* parent_sizer = GetParent()->GetSizer();
 	if (parent_sizer) parent_sizer->Layout();
 	Thaw();
+}
+
+void SubsEditBox::UpdateTextMask() {
+	bool dialogue = line && !line->Comment;
+	edit_ctrl->SetTextMaskAllowed(dialogue);
+	subtitle_mask::Apply(*secondary_editor, dialogue && OPT_GET("Subtitle/Text Mask")->GetBool());
 }
 
 void SubsEditBox::OnStyleChange(wxCommandEvent &evt) {
@@ -624,6 +644,7 @@ void SubsEditBox::OnEffectChange(wxCommandEvent &evt) {
 
 void SubsEditBox::OnCommentChange(wxCommandEvent &evt) {
 	SetSelectedRows(&AssDialogue::Comment, !!evt.GetInt(), _("comment change"), AssFile::COMMIT_DIAG_META);
+	UpdateTextMask();
 }
 
 void SubsEditBox::CallCommand(const char *cmd_name) {

@@ -134,6 +134,8 @@
         { "command" : "app/display/audio_subs" },
         { "command" : "app/display/full" },
         {},
+        { "command" : "subtitle/text_mask" },
+        {},
         { "command" : "grid/tags/show" },
         { "command" : "grid/tags/simplify" },
         { "command" : "grid/tags/hide" },

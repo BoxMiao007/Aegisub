@@ -29,18 +29,21 @@ class wxCheckBox;
 class wxCommandEvent;
 class wxKeyEvent;
 class wxListBox;
+class wxStyledTextCtrl;
 class wxTextCtrl;
 namespace agi { struct Context; }
 
 class DialogStyling final : public wxDialog {
 	agi::Context *c;
 	agi::signal::Connection active_line_connection;
+	agi::signal::Connection file_change_connection;
+	agi::signal::Connection mask_connection;
 
 	wxButton *play_audio;
 	wxButton *play_video;
 	wxCheckBox *auto_seek;
 	wxListBox *style_list;
-	wxTextCtrl *current_line_text;
+	wxStyledTextCtrl *current_line_text;
 	wxTextCtrl *style_name;
 
 	void OnActivate(wxActivateEvent &evt);
@@ -53,6 +56,9 @@ class DialogStyling final : public wxDialog {
 	void OnStyleBoxModified(wxCommandEvent &evt);
 
 	void OnActiveLineChanged(AssDialogue *);
+	void OnFileChanged(int type, AssDialogue const *changed);
+	void UpdateCurrentLine();
+	void UpdateMask();
 
 	AssDialogue *active_line = nullptr;
 

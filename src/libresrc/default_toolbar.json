@@ -59,7 +59,8 @@
         "subtitle/spellcheck",
         "",
         "app/options",
-        "grid/tag/cycle_hiding"
+        "grid/tag/cycle_hiding",
+        "subtitle/text_mask"
     ],
     "video" : [
         "video/play",

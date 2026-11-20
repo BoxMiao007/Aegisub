@@ -377,6 +377,7 @@
 			"CPS Error Threshold" : 30
 		},
 		"Character Limit" : 40,
+		"Text Mask" : false,
 		"Default Resolution" : {
 			"Auto" : true,
 			"Height" : 720,

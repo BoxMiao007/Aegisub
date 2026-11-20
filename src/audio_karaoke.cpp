@@ -25,6 +25,8 @@
 #include "audio_controller.h"
 #include "audio_timing.h"
 #include "compat.h"
+#include "drawn_text_mask.h"
+#include <libaegisub/dialogue_text_mask.h>
 #include "libresrc/libresrc.h"
 #include "options.h"
 #include "project.h"
@@ -82,6 +84,10 @@ AudioKaraoke::AudioKaraoke(wxWindow *parent, agi::Context *c)
 	SetStyle();
 	BindConnection(OPT_SUB("Audio/Karaoke/Font Face", &AudioKaraoke::SetStyle, this));
 	BindConnection(OPT_SUB("Audio/Karaoke/Font Size", &AudioKaraoke::SetStyle, this));
+	BindConnection(OPT_SUB("Subtitle/Text Mask", [this](agi::OptionValue const&) {
+		if (active_line) RenderText();
+		split_area->Refresh(false);
+	}));
 
 	split_area->Bind(wxEVT_SIZE, &AudioKaraoke::OnSize, this);
 	split_area->Bind(wxEVT_PAINT, &AudioKaraoke::OnPaint, this);
@@ -213,8 +219,12 @@ void AudioKaraoke::RenderText() {
 
 	// Draw each character in the line
 	int y = (bmp_size.GetHeight() - char_height) / 2;
-	for (size_t i = 0; i < spaced_text.size(); ++i)
-		dc.DrawText(spaced_text[i], char_x[i], y);
+	for (size_t i = 0; i < spaced_text.size(); ++i) {
+		if (active_line && !active_line->Comment && OPT_GET("Subtitle/Text Mask")->GetBool() && i < mask_char.size() && mask_char[i])
+			subtitle_mask::DrawBlock(dc, char_x[i], y, char_width, char_height);
+		else
+			dc.DrawText(spaced_text[i], char_x[i], y);
+	}
 
 	// Draw the lines between each syllable
 	dc.SetPen(wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT));
@@ -357,6 +367,7 @@ void AudioKaraoke::SetDisplayText() {
 
 	spaced_text.clear();
 	char_to_byte.clear();
+	mask_char.clear();
 	syl_start_points.clear();
 	for (auto const& syl : *kara) {
 		// The last (and only the last) syllable needs the width of the final
@@ -369,10 +380,13 @@ void AudioKaraoke::SetDisplayText() {
 
 		// Add a space between each syllable to avoid crowding
 		spaced_text.emplace_back(wxS(" "));
+		mask_char.push_back(false);
 		str_char_widths.push_back(char_width);
 		char_to_byte.push_back(1);
 
 		size_t syl_idx = 1;
+		auto ranges = agi::ass::DialogueMaskRanges(syl.text, false);
+		size_t range_index = 0;
 		agi::BreakIterator characters;
 		characters.set_text(syl.text);
 		for (; !characters.done(); characters.next()) {
@@ -383,6 +397,8 @@ void AudioKaraoke::SetDisplayText() {
 			str_char_widths.push_back(width);
 
 			spaced_text.emplace_back(to_wx(character));
+			while (range_index < ranges.size() && ranges[range_index].start + ranges[range_index].length <= syl_idx - 1) ++range_index;
+			mask_char.push_back(range_index < ranges.size() && ranges[range_index].start <= syl_idx - 1 && syl_idx - 1 < ranges[range_index].start + ranges[range_index].length);
 			char_to_byte.push_back(syl_idx);
 			syl_idx += character.size();
 		}

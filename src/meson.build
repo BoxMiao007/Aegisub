@@ -83,6 +83,7 @@ aegisub_src = files(
     'dialog_text_import.cpp',
     'dialog_timing_processor.cpp',
     'dialog_translation.cpp',
+    'drawn_text_mask.cpp',
     'dialog_version_check.cpp',
     'dialog_video_details.cpp',
     'dialog_video_properties.cpp',
@@ -117,6 +118,7 @@ aegisub_src = files(
     'subs_edit_box.cpp',
     'subs_edit_ctrl.cpp',
     'subs_preview.cpp',
+    'styled_text_mask.cpp',
     'subtitle_format.cpp',
     'subtitle_format_ass.cpp',
     'subtitle_format_ebu3264.cpp',
@@ -184,6 +186,7 @@ elif host_machine.system() == 'windows'
 
     if cc.has_header('wingdi.h')
         deps += cc.find_library('gdi32', required: true)
+        deps += cc.find_library('usp10', required: true)
     else
         error('Missing Windows SDK GDI Library (wingdi.h / gdi32.lib)')
     endif

@@ -36,6 +36,7 @@
 #include "audio_renderer_waveform.h"
 #include "audio_timing.h"
 #include "compat.h"
+#include "drawn_text_mask.h"
 #include "format.h"
 #include "include/aegisub/context.h"
 #include "include/aegisub/hotkey.h"
@@ -583,6 +584,7 @@ AudioDisplay::AudioDisplay(wxWindow *parent, AudioController *controller, agi::C
 , timeline(std::make_unique<AudioDisplayTimeline>(this))
 , style_ranges({{0, 0}})
 {
+	text_mask_connection = OPT_SUB("Subtitle/Text Mask", [this](agi::OptionValue const&) { Refresh(false); });
 	audio_renderer->SetAmplitudeScale(scale_amplitude);
 	SetZoomLevel(0);
 
@@ -953,13 +955,18 @@ void AudioDisplay::PaintLabels(wxDC &dc, TimeRange updtime)
 		if (width < extent.GetWidth())
 		{
 			dc.SetClippingRegion(left, audio_top + 4, width, extent.GetHeight());
-			dc.DrawText(label.text, left, audio_top + 4);
+			if (label.dialogue_text && OPT_GET("Subtitle/Text Mask")->GetBool())
+				subtitle_mask::Draw(dc, label.text, left, audio_top + 4, false);
+			else dc.DrawText(label.text, left, audio_top + 4);
 			dc.DestroyClippingRegion();
 		}
 		// Otherwise center in the range
 		else
 		{
-			dc.DrawText(label.text, left + (width - extent.GetWidth()) / 2, audio_top + 4);
+			int x = left + (width - extent.GetWidth()) / 2;
+			if (label.dialogue_text && OPT_GET("Subtitle/Text Mask")->GetBool())
+				subtitle_mask::Draw(dc, label.text, x, audio_top + 4, false);
+			else dc.DrawText(label.text, x, audio_top + 4);
 		}
 	}
 }

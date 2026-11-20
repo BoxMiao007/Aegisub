@@ -83,6 +83,9 @@ class SubsTextEditCtrl final : public wxStyledTextCtrl, private agi::signal::Con
 
 	/// Tokenized version of line_text
 	std::vector<agi::ass::DialogueToken> tokenized_line;
+	bool text_mask_allowed = true;
+
+	bool IsMaskedPosition(int pos);
 
 	void OnContextMenu(wxContextMenuEvent &);
 	void OnDoubleClick(wxStyledTextEvent&);
@@ -118,6 +121,8 @@ public:
 	~SubsTextEditCtrl();
 
 	void SetTextTo(std::string const& text);
+	void SetTextMaskAllowed(bool allowed);
+	void RefreshTextMask();
 	void Paste() override;
 
 	std::pair<int, int> GetBoundsOfWordAtPosition(int pos);

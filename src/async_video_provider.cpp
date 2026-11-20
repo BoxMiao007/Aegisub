@@ -22,10 +22,12 @@
 #include "include/aegisub/subtitles_provider.h"
 #include "video_frame.h"
 #include "video_provider_manager.h"
+#include "options.h"
 
 #include <libaegisub/dispatch.h>
 
 #include <boost/gil.hpp>
+
 
 enum {
 	NEW_SUBS_FILE = -1,
@@ -162,12 +164,19 @@ AsyncVideoProvider::AsyncVideoProvider(agi::fs::path const& video_filename, agi:
 , subs_provider(get_subs_provider(parent, br))
 , source_provider(VideoProviderFactory::GetProvider(video_filename, colormatrix, br))
 , parent(parent)
+, preview_mask(OPT_GET("Subtitle/Text Mask")->GetBool())
 {
 }
 
 AsyncVideoProvider::~AsyncVideoProvider() {
 	// Block until all currently queued jobs are complete
 	worker->Sync([]{});
+}
+
+void AsyncVideoProvider::SetPreviewTextMask(bool enabled) {
+	if (!preview_mask.Set(enabled)) return;
+	uint_fast32_t request = ++version;
+	worker->Async([this, request] { ProcAsync(request, false); });
 }
 
 void AsyncVideoProvider::LoadSubtitles(const AssFile *new_subs) throw() {
@@ -244,7 +253,7 @@ void AsyncVideoProvider::ProcAsync(uint_fast32_t req_version, bool check_updated
 	if (req_version < version || frame_number < 0) return;
 
 	std::vector<AssDialogueBase const*> visible_lines;
-	for (auto const& line : subs->Events) {
+	if (subs) for (auto const& line : subs->Events) {
 		if (!line.Comment && !(line.Start > time || line.End <= time))
 			visible_lines.push_back(&line);
 	}
@@ -258,7 +267,11 @@ void AsyncVideoProvider::ProcAsync(uint_fast32_t req_version, bool check_updated
 	last_rendered = frame_number;
 
 	try {
-		auto evt = new FrameReadyEvent(ProcFrame(frame_number, time), time);
+		auto token = preview_mask.Capture();
+		// 现有渲染器没有逐字形坐标。只在实时预览走原画面，输出 API 保持原样。
+		auto frame = ProcFrame(frame_number, time, token.Masked());
+		if (req_version != version || !preview_mask.Accept(token)) return;
+		auto evt = new FrameReadyEvent(std::move(frame), time, token);
 		evt->SetEventType(EVT_FRAME_READY);
 		parent->QueueEvent(evt);
 	}

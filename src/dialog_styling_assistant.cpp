@@ -30,9 +30,11 @@
 #include "compat.h"
 #include "help_button.h"
 #include "libresrc/libresrc.h"
+#include "options.h"
 #include "persist_location.h"
 #include "project.h"
 #include "selection_controller.h"
+#include "styled_text_mask.h"
 #include "video_controller.h"
 
 #include <wx/checkbox.h>
@@ -43,7 +45,9 @@
 #include <wx/sizer.h>
 #include <wx/statbox.h>
 #include <wx/stattext.h>
+#include <wx/stc/stc.h>
 #include <wx/textctrl.h>
+#include <wx/wupdlock.h>
 
 static void add_hotkey(wxSizer *sizer, wxWindow *parent, const char *command, wxString const& text) {
 	sizer->Add(new wxStaticText(parent, -1, text));
@@ -54,6 +58,8 @@ DialogStyling::DialogStyling(agi::Context *context)
 : wxDialog(context->parent, -1, _("Styling Assistant"), wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER | wxMINIMIZE_BOX)
 , c(context)
 , active_line_connection(context->selectionController->AddActiveLineListener(&DialogStyling::OnActiveLineChanged, this))
+, file_change_connection(context->ass->AddCommitListener(&DialogStyling::OnFileChanged, this))
+, mask_connection(OPT_SUB("Subtitle/Text Mask", &DialogStyling::UpdateMask, this))
 {
 	SetIcons(GETICONS(styling_toolbutton));
 
@@ -62,7 +68,15 @@ DialogStyling::DialogStyling(agi::Context *context)
 
 	{
 		wxStaticBoxSizer *cur_line_box = new wxStaticBoxSizer(wxHORIZONTAL, this, _("Current line"));
-		current_line_text = new wxTextCtrl(cur_line_box->GetStaticBox(), -1, _("Current line"), wxDefaultPosition, wxSize(300, 60), wxTE_MULTILINE | wxTE_READONLY);
+		current_line_text = new wxStyledTextCtrl(cur_line_box->GetStaticBox(), -1, wxDefaultPosition, wxSize(300, 60), wxBORDER_SUNKEN, _("Current line"));
+		current_line_text->SetWrapMode(wxSTC_WRAP_WORD);
+		current_line_text->SetMarginWidth(1, 0);
+		current_line_text->SetUseHorizontalScrollBar(false);
+		current_line_text->StyleSetFont(wxSTC_STYLE_DEFAULT, GetFont());
+		current_line_text->StyleSetForeground(wxSTC_STYLE_DEFAULT, wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT));
+		current_line_text->StyleSetBackground(wxSTC_STYLE_DEFAULT, wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
+		current_line_text->StyleClearAll();
+		current_line_text->SetUndoCollection(false);
 		cur_line_box->Add(current_line_text, 1, wxEXPAND, 0);
 		main_sizer->Add(cur_line_box, 0, wxEXPAND | wxALL, 5);
 	}
@@ -153,11 +167,34 @@ DialogStyling::DialogStyling(agi::Context *context)
 DialogStyling::~DialogStyling () {
 }
 
-void DialogStyling::OnActiveLineChanged(AssDialogue *new_line) {
-	if (!new_line) return;
-	active_line = new_line;
+void DialogStyling::UpdateMask() {
+	subtitle_mask::Apply(*current_line_text, active_line && !active_line->Comment && OPT_GET("Subtitle/Text Mask")->GetBool());
+}
 
-	current_line_text->SetValue(to_wx(active_line->Text));
+void DialogStyling::UpdateCurrentLine() {
+	wxWindowUpdateLocker lock(current_line_text);
+	current_line_text->SetReadOnly(false);
+	current_line_text->SetText(active_line ? to_wx(active_line->Text.get()) : wxString());
+	current_line_text->SetReadOnly(true);
+	UpdateMask();
+}
+
+void DialogStyling::OnFileChanged(int type, AssDialogue const *changed) {
+	if (type == AssFile::COMMIT_NEW) {
+		// 替换整个文件时，选中行稍后才会更新。
+		OnActiveLineChanged(nullptr);
+		return;
+	}
+	if (!active_line || (changed && active_line != changed)) return;
+	if (type & AssFile::COMMIT_DIAG_TEXT) UpdateCurrentLine();
+	else if (type & AssFile::COMMIT_DIAG_META) UpdateMask();
+}
+
+void DialogStyling::OnActiveLineChanged(AssDialogue *new_line) {
+	active_line = new_line;
+	UpdateCurrentLine();
+	if (!active_line) return;
+
 	style_name->SetValue(to_wx(active_line->Style));
 	style_name->SetSelection(0, active_line->Style.get().size());
 	style_name->SetFocus();
@@ -169,7 +206,7 @@ void DialogStyling::OnActiveLineChanged(AssDialogue *new_line) {
 }
 
 void DialogStyling::Commit(bool next) {
-	if (!c->ass->GetStyle(from_wx(style_name->GetValue()))) return;
+	if (!active_line || !c->ass->GetStyle(from_wx(style_name->GetValue()))) return;
 
 	active_line->Style = from_wx(style_name->GetValue());
 	c->ass->Commit(_("styling assistant"), AssFile::COMMIT_DIAG_META);
@@ -185,7 +222,7 @@ void DialogStyling::OnActivate(wxActivateEvent &) {
 
 	style_list->Set(to_wx(c->ass->GetStyles()));
 
-	if (auto_seek->IsChecked())
+	if (active_line && auto_seek->IsChecked())
 		c->videoController->JumpToTime(active_line->Start);
 
 	style_name->SetFocus();
