@@ -484,7 +484,9 @@ class AutomationMenu final : public wxMenu {
 			for (auto section : agi::Split(name, wxS('/'))) {
 				std::string sectionname(section.begin(), section.end());
 
-				if (section.end() == std::string_view(name).end()) {
+				// section 是 name 的子视图，直接比较两个不同视图的迭代器会被调试版 STL
+				// 判为非法（Release 下比较的是裸指针，所以只有 Debug 会中断）。按数据边界判断。
+				if (section.data() + section.size() == name.data() + name.size()) {
 					parent->subitems.emplace_back(sectionname, macro);
 				}
 				else {
