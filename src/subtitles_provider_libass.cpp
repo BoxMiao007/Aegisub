@@ -45,10 +45,8 @@
 #include <libaegisub/log.h>
 #include <libaegisub/util.h>
 
-#include <algorithm>
 #include <atomic>
 #include <boost/gil.hpp>
-#include <map>
 #include <memory>
 #include <mutex>
 
@@ -86,12 +84,45 @@ struct cache_thread_shared {
 	~cache_thread_shared() { if (renderer) ass_renderer_done(renderer); }
 };
 
+/// 复制序列化字幕，只把 Dialogue 行的正文替换成 token，其余字节原样保留。
+std::string MaskAssData(std::string const& data, std::string_view token) {
+	std::string out;
+	out.reserve(data.size());
+	std::size_t pos = 0;
+	while (pos <= data.size()) {
+		auto nl = data.find('\n', pos);
+		std::string_view line(data.data() + pos, (nl == std::string::npos ? data.size() : nl) - pos);
+		bool dialogue = line.size() >= 9 && line.substr(0, 9) == "Dialogue:";
+		if (!dialogue) {
+			out.append(line);
+		} else {
+			std::size_t text = 9;
+			int commas = 0;
+			for (; text < line.size(); ++text) {
+				if (line[text] == ',' && ++commas == 9) { ++text; break; }
+			}
+			out.append(line.substr(0, text));
+			out.append(agi::ass::DialogueMaskReplace(line.substr(text), token));
+		}
+		if (nl == std::string::npos) break;
+		out.push_back('\n');
+		pos = nl + 1;
+	}
+	return out;
+}
+
+
 class LibassSubtitlesProvider final : public SubtitlesProvider {
 	agi::BackgroundRunner *br;
 	std::shared_ptr<cache_thread_shared> shared;
 	ASS_Track* ass_track = nullptr;
-	/// 实时预览的台词遮挡；导出与截图路径始终为 false
-	bool text_mask_enabled = false;
+	/// 原始序列化字幕，用于按当前替换符生成预览副本
+	std::string source_data;
+	/// 预览用替换副本；token 变了才重建
+	ASS_Track* masked_track = nullptr;
+	std::string masked_token;
+	bool replacement_enabled = false;
+	std::string replacement_token;
 
 	ASS_Renderer *renderer() {
 		if (shared->ready)
@@ -119,18 +150,37 @@ class LibassSubtitlesProvider final : public SubtitlesProvider {
 		return shared->renderer;
 	}
 
+	/// 按当前替换符生成（或复用）预览专用字幕轨道。
+	ASS_Track* EnsureMaskedTrack() {
+		std::string token = agi::ass::NormalizeMaskToken(replacement_token);
+		if (masked_track && masked_token == token)
+			return masked_track;
+		if (masked_track) { ass_free_track(masked_track); masked_track = nullptr; }
+		std::string masked = MaskAssData(source_data, token);
+		masked_track = ass_read_memory(library, &masked[0], masked.size(), nullptr);
+		if (!masked_track) throw agi::InternalError("libass failed to load masked subtitles.");
+		masked_token = token;
+		return masked_track;
+	}
+
 public:
 	LibassSubtitlesProvider(agi::BackgroundRunner *br);
 	~LibassSubtitlesProvider();
 
 	void LoadSubtitles(const char *data, size_t len) override {
+		source_data.assign(data, len);
 		if (ass_track) ass_free_track(ass_track);
 		ass_track = ass_read_memory(library, const_cast<char *>(data), len, nullptr);
 		if (!ass_track) throw agi::InternalError("libass failed to load subtitles.");
+		if (masked_track) { ass_free_track(masked_track); masked_track = nullptr; }
+		masked_token.clear();
 	}
 
 	void DrawSubtitles(VideoFrame &dst, double time) override;
-	void SetTextMask(bool enabled) override { text_mask_enabled = enabled; }
+	void SetTextReplacement(bool enabled, std::string const& token) override {
+		replacement_enabled = enabled;
+		replacement_token = token;
+	}
 
 	void Reinitialize() override {
 		// No need to reinit if we're not even done with the initial init
@@ -162,6 +212,7 @@ LibassSubtitlesProvider::LibassSubtitlesProvider(agi::BackgroundRunner *br)
 
 LibassSubtitlesProvider::~LibassSubtitlesProvider() {
 	if (ass_track) ass_free_track(ass_track);
+	if (masked_track) ass_free_track(masked_track);
 }
 
 #define _r(c) ((c)>>24)
@@ -174,11 +225,10 @@ void LibassSubtitlesProvider::DrawSubtitles(VideoFrame &frame,double time) {
 	// Note: this relies on Aegisub always rendering at video storage res
 	ass_set_storage_size(renderer(), frame.width, frame.height);
 
-	// 只在需要遮挡时收集字形盒；默认关闭，不影响正常渲染。
-	ass_set_glyph_box_collection(renderer(), text_mask_enabled ? 1 : 0);
-
+	// 实时预览用替换后的副本渲染；导出、截图与复制仍用原始字幕。
 	// Add 1e-6 to guard against floating point imprecision errors on int -> float -> *1000 -> int round trips
-	ASS_Image* img = ass_render_frame(renderer(), ass_track, floor(time * 1000 + 1e-6), nullptr);
+	ASS_Track *track = replacement_enabled ? EnsureMaskedTrack() : ass_track;
+	ASS_Image* img = ass_render_frame(renderer(), track, floor(time * 1000 + 1e-6), nullptr);
 
 	// libass actually returns several alpha-masked monochrome images.
 	// Here, we loop through their linked list, get the colour of the current, and blend into the frame.
@@ -211,35 +261,6 @@ void LibassSubtitlesProvider::DrawSubtitles(VideoFrame &frame,double time) {
 		});
 	}
 
-	if (text_mask_enabled) {
-		// 隔字遮挡：每个事件从第 1 个正文文字开始交替，第 1 个正常、第 2 个遮、第 3 个正常……
-		// 标点、空白与 \p 绘图不占交替位；同一字素（含卡拉 OK 被拆开的段）总取同一奇偶。
-		ASS_GlyphBox *boxes = nullptr;
-		int count = ass_get_glyph_boxes(renderer(), &boxes);
-		std::map<const char *, std::vector<agi::ass::MaskRange>> ranges_cache;
-		for (int i = 0; i < count; ++i) {
-			ASS_GlyphBox const &box = boxes[i];
-			if (box.is_drawing || !box.text_length || !box.event_text)
-				continue;
-
-			auto it = ranges_cache.find(box.event_text);
-			if (it == ranges_cache.end())
-				it = ranges_cache.emplace(box.event_text, agi::ass::DialogueMaskRanges(box.event_text)).first;
-			auto const &ranges = it->second;
-			auto index = agi::ass::MaskRangeIndexAt(ranges, box.text_offset, box.text_length);
-			if (index >= ranges.size() || index % 2 == 0)
-				continue;
-
-			int x0 = std::max(0, box.x - 1);
-			int y0 = std::max(0, box.y - 1);
-			int x1 = std::min<int>(frame.width, box.x + box.w + 1);
-			int y1 = std::min<int>(frame.height, box.y + box.h + 1);
-			if (x1 <= x0 || y1 <= y0)
-				continue;
-
-			fill_pixels(subimage_view(dst, x0, y0, x1 - x0, y1 - y0), bgra8_pixel_t(0, 0, 0, 0));
-		}
-	}
 }
 }
 

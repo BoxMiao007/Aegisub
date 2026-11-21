@@ -4,6 +4,8 @@
 #include "libaegisub/dialogue_text_mask.h"
 #include "libaegisub/unicode.h"
 
+#include <cctype>
+
 #include <unicode/uchar.h>
 #include <unicode/utf8.h>
 
@@ -84,11 +86,86 @@ std::vector<MaskRange> DialogueMaskRanges(std::string_view text, bool ass_syntax
 	return ranges;
 }
 
-std::size_t MaskRangeIndexAt(const std::vector<MaskRange>& ranges, std::size_t offset, std::size_t length) {
-	for (std::size_t i = 0; i < ranges.size(); ++i) {
-		if (offset < ranges[i].start + ranges[i].length && ranges[i].start < offset + length)
-			return i;
+namespace {
+void AppendReplacement(std::string& out, std::string_view text, std::string_view token) {
+	if (text.empty()) return;
+	BreakIterator characters;
+	characters.set_text(text);
+	for (; !characters.done(); characters.next()) {
+		auto cluster = characters.current();
+		if (Readable(cluster)) out.append(cluster);
+		else out.append(token);
 	}
-	return ranges.size();
+}
+
+int ParseDrawingLevel(std::string_view tag) {
+	int level = -1;
+	for (std::size_t i = 0; i + 1 < tag.size(); ++i) {
+		if (tag[i] != 92 || tag[i + 1] != 'p') continue;
+		std::size_t j = i + 2;
+		int value = 0;
+		bool digits = false;
+		while (j < tag.size() && std::isdigit(static_cast<unsigned char>(tag[j]))) {
+			value = value * 10 + (tag[j] - '0');
+			digits = true;
+			++j;
+		}
+		if (digits) level = value;
+	}
+	return level;
+}
+}
+
+std::string NormalizeMaskToken(std::string_view token) {
+	if (token.empty() || !ValidUtf8(token)) return "X";
+	for (char c : token) {
+		if (c == '{' || c == '}' || c == 92 || c == '\n' || c == '\r')
+			return "X";
+	}
+	return std::string(token);
+}
+
+std::string DialogueMaskReplace(std::string_view text, std::string_view token, bool ass_syntax) {
+	std::string masked = NormalizeMaskToken(token);
+	std::string out;
+	out.reserve(text.size());
+	int drawing = 0;
+
+	auto append_plain = [&](std::string_view segment) {
+		std::size_t start = 0;
+		for (std::size_t pos = 0; pos + 1 < segment.size(); ++pos) {
+			if (segment[pos] == 92 && !Escaped(segment, pos) &&
+			    (segment[pos + 1] == 'N' || segment[pos + 1] == 'n' || segment[pos + 1] == 'h')) {
+				if (drawing > 0) out.append(segment.substr(start, pos - start));
+				else AppendReplacement(out, segment.substr(start, pos - start), masked);
+				out.push_back(92);
+				out.push_back(segment[pos + 1]);
+				pos += 1;
+				start = pos + 1;
+			}
+		}
+		if (drawing > 0) out.append(segment.substr(start));
+		else AppendReplacement(out, segment.substr(start), masked);
+	};
+
+	if (!ass_syntax) {
+		append_plain(text);
+		return out;
+	}
+
+	std::size_t plain = 0;
+	for (std::size_t pos = 0; pos < text.size(); ++pos) {
+		if (text[pos] != '{' || Escaped(text, pos)) continue;
+		auto close = text.find('}', pos + 1);
+		if (close == text.npos) break;
+		append_plain(text.substr(plain, pos - plain));
+		out.append(text.substr(pos, close - pos + 1));
+		int level = ParseDrawingLevel(text.substr(pos + 1, close - pos - 1));
+		if (level >= 0) drawing = level;
+		plain = close + 1;
+		pos = close;
+	}
+	append_plain(text.substr(plain));
+	return out;
 }
 }

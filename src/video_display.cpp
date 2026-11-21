@@ -126,6 +126,7 @@ VideoDisplay::VideoDisplay(wxToolBar *toolbar, bool freeSize, wxComboBox *zoomBo
 		}),
 		con->videoController->AddARChangeListener(&VideoDisplay::FitClientSizeToVideo, this),
 		OPT_SUB("Subtitle/Text Mask", [this](agi::OptionValue const&) { InvalidatePreview(); }),
+		OPT_SUB("Subtitle/Text Mask Replacement", [this](agi::OptionValue const&) { InvalidatePreview(); }),
 	});
 
 	// Follow the spoiler shield settings here, not in the individual commands, so

@@ -34,7 +34,7 @@ enum {
 	SUBS_FILE_ALREADY_LOADED = -2
 };
 
-std::shared_ptr<VideoFrame> AsyncVideoProvider::ProcFrame(int frame_number, double time, bool raw, bool text_mask) {
+std::shared_ptr<VideoFrame> AsyncVideoProvider::ProcFrame(int frame_number, double time, bool raw, bool text_mask, std::string text_token) {
 	// Find an unused buffer to use or allocate a new one if needed
 	std::shared_ptr<VideoFrame> frame;
 	for (auto& buffer : buffers) {
@@ -78,7 +78,7 @@ std::shared_ptr<VideoFrame> AsyncVideoProvider::ProcFrame(int frame_number, doub
 	catch (agi::Exception const& err) { throw SubtitlesProviderErrorEvent(err.GetMessage()); }
 
 	if (subs_provider)
-		subs_provider->SetTextMask(text_mask);
+		subs_provider->SetTextReplacement(text_mask, text_token);
 
 	try {
 		subs_provider->DrawSubtitles(*frame, time / 1000.);
@@ -86,7 +86,7 @@ std::shared_ptr<VideoFrame> AsyncVideoProvider::ProcFrame(int frame_number, doub
 	catch (agi::UserCancelException const&) { }
 
 	if (subs_provider)
-		subs_provider->SetTextMask(false);
+		subs_provider->SetTextReplacement(false, text_token);
 
 	return frame;
 }
@@ -185,6 +185,14 @@ void AsyncVideoProvider::SetPreviewTextMask(bool enabled) {
 	worker->Async([this, request] { ProcAsync(request, false); });
 }
 
+void AsyncVideoProvider::SetPreviewTextReplacement(std::string token) {
+	auto next = std::make_shared<const std::string>(std::move(token));
+	auto prev = preview_token.exchange(next);
+	if (prev && *prev == *next) return;
+	uint_fast32_t request = ++version;
+	worker->Async([this, request] { ProcAsync(request, false); });
+}
+
 void AsyncVideoProvider::LoadSubtitles(const AssFile *new_subs) throw() {
 	uint_fast32_t req_version = ++version;
 
@@ -274,9 +282,9 @@ void AsyncVideoProvider::ProcAsync(uint_fast32_t req_version, bool check_updated
 
 	try {
 		auto token = preview_mask.Capture();
-		// 实时预览按字遮挡：仍走正常字幕渲染，只把台词正文换成实心块；
-		// 导出、截图与复制走 GetFrame 默认路径，不受影响。
-		auto frame = ProcFrame(frame_number, time, false, token.Masked());
+		// 实时预览用替换符改写正文；导出、截图与复制走 GetFrame 默认路径，不受影响。
+		auto token_text = preview_token.load();
+		auto frame = ProcFrame(frame_number, time, false, token.Masked(), *token_text);
 		if (req_version != version || !preview_mask.Accept(token)) return;
 		auto evt = new FrameReadyEvent(std::move(frame), time, token);
 		evt->SetEventType(EVT_FRAME_READY);

@@ -26,6 +26,7 @@
 #include <cstdint>
 #include <memory>
 #include <set>
+#include <string>
 #include <wx/event.h>
 
 class AssDialogue;
@@ -71,7 +72,7 @@ class AsyncVideoProvider {
 	/// lines have actually changed
 	bool NeedUpdate(std::vector<AssDialogueBase const*> const& visible_lines);
 
-	std::shared_ptr<VideoFrame> ProcFrame(int frame, double time, bool raw = false, bool text_mask = false);
+	std::shared_ptr<VideoFrame> ProcFrame(int frame, double time, bool raw = false, bool text_mask = false, std::string text_token = "X");
 
 	/// Produce a frame if req_version is still the current version
 	void ProcAsync(uint_fast32_t req_version, bool check_updated);
@@ -80,6 +81,8 @@ class AsyncVideoProvider {
 	/// they can be rendered
 	std::atomic<uint_fast32_t> version{ 0 };
 	VideoPreviewMask preview_mask;
+	/// 预览替换符，主线程写入、工作线程读取
+	std::atomic<std::shared_ptr<const std::string>> preview_token{std::make_shared<const std::string>("X")};
 
 	std::vector<std::shared_ptr<VideoFrame>> buffers;
 
@@ -89,6 +92,8 @@ class AsyncVideoProvider {
 public:
 	/// 切换实时预览的防剧透模式；只影响显示取帧，不改变截图、复制或导出。
 	void SetPreviewTextMask(bool enabled);
+	/// 设置预览替换符；只影响显示取帧。
+	void SetPreviewTextReplacement(std::string token);
 	bool AcceptPreview(VideoPreviewMask::Token token) const { return preview_mask.Accept(token); }
 
 	/// @brief Load the passed subtitle file

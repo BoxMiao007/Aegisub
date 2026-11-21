@@ -45,6 +45,7 @@ aegisub_src = files(
     'command/grid.cpp',
     'command/help.cpp',
     'command/keyframe.cpp',
+  'command/mask_settings.cpp',
     'command/recent.cpp',
     'command/spoiler_shield.cpp',
     'command/subtitle.cpp',

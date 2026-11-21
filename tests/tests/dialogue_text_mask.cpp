@@ -11,7 +11,8 @@
 namespace {
 using agi::ass::DialogueMaskRanges;
 using agi::ass::MaskRange;
-using agi::ass::MaskRangeIndexAt;
+using agi::ass::DialogueMaskReplace;
+using agi::ass::NormalizeMaskToken;
 
 void expect_ranges(std::string_view text, std::initializer_list<MaskRange> expected, bool ass_syntax = true) {
 	auto actual = DialogueMaskRanges(text, ass_syntax);
@@ -67,21 +68,24 @@ TEST(lagi_dialogue_text_mask, drawing_text_and_symbols_are_not_exempt) {
 	}, false);
 }
 
-TEST(lagi_dialogue_text_mask, alternation_skips_punctuation_and_keeps_clusters_together) {
-	auto ranges = DialogueMaskRanges("\xE5\x88\xA5\xE5\x8E\xBB\xEF\xBC\x8C" "B2" "\xEF\xBC\x81");
-	ASSERT_EQ(4u, ranges.size());
-	EXPECT_EQ(0u, MaskRangeIndexAt(ranges, 0, 3));   // 别
-	EXPECT_EQ(1u, MaskRangeIndexAt(ranges, 3, 3));   // 去
-	EXPECT_EQ(ranges.size(), MaskRangeIndexAt(ranges, 6, 3)); // ，
-	EXPECT_EQ(2u, MaskRangeIndexAt(ranges, 9, 1));   // B
-	EXPECT_EQ(3u, MaskRangeIndexAt(ranges, 10, 1));  // 2
+TEST(lagi_dialogue_text_mask, replacement_keeps_punctuation_and_replaces_each_grapheme) {
+	EXPECT_EQ("XX\xEF\xBC\x8C" "XX\xEF\xBC\x81",
+		DialogueMaskReplace("\xE5\x88\xA5\xE5\x8E\xBB\xEF\xBC\x8C" "B2" "\xEF\xBC\x81", "X"));
+	EXPECT_EQ("XX", DialogueMaskReplace("e\xCC\x81Z", "X"));
+	EXPECT_EQ("####", DialogueMaskReplace("ab", "##"));
+}
 
-	// 组合字素被拆成多个字形时，各段仍取同一个序号。
-	auto cluster = DialogueMaskRanges("e\xCC\x81Z");
-	ASSERT_EQ(2u, cluster.size());
-	EXPECT_EQ(0u, MaskRangeIndexAt(cluster, 0, 1));
-	EXPECT_EQ(0u, MaskRangeIndexAt(cluster, 1, 2));
-	EXPECT_EQ(1u, MaskRangeIndexAt(cluster, 3, 1));
+TEST(lagi_dialogue_text_mask, replacement_keeps_tags_escapes_and_drawings) {
+	EXPECT_EQ("{\\i1}X\\NX{\\p1}m 0 0 l 10 10{\\p0}X",
+		DialogueMaskReplace("{\\i1}\xE5\x88\xA5\\N\xE5\x8E\xBB{\\p1}m 0 0 l 10 10{\\p0}\xE5\x90\x8E", "X"));
+}
+
+TEST(lagi_dialogue_text_mask, replacement_token_is_normalized) {
+	EXPECT_EQ("X", NormalizeMaskToken(""));
+	EXPECT_EQ("X", NormalizeMaskToken("{x}"));
+	EXPECT_EQ("X", NormalizeMaskToken("a\\b"));
+	EXPECT_EQ("ab", NormalizeMaskToken("ab"));
+	EXPECT_EQ("X", DialogueMaskReplace("a", "{x}"));
 }
 
 TEST(lagi_dialogue_text_mask, malformed_utf8_is_masked) {

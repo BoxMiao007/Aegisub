@@ -49,8 +49,8 @@ public:
 	virtual ~SubtitlesProvider() = default;
 	void LoadSubtitles(AssFile *subs, int time = -1);
 	virtual void DrawSubtitles(VideoFrame &dst, double time)=0;
-	/// 切换本次绘制是否把台词正文画成实心块（仅实时预览使用，导出与截图不受影响）
-	virtual void SetTextMask(bool) { }
+	/// 切换本次绘制是否用替换符改写正文（仅实时预览使用，导出与截图不受影响）
+	virtual void SetTextReplacement(bool, std::string const&) { }
 	virtual void Reinitialize() { }
 };
 

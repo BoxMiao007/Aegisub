@@ -9,7 +9,7 @@
 | 功能 | 一句话说明 | 关键文件/入口 | 引入提交 |
 | ---- | ---------- | -------------- | -------- |
 | 防剧透遮罩(Spoiler Shield) | 默认遮住视频预览(含烧录字幕),仅可调取景窗内正常显示画面;支持纯色/马赛克且马赛克块大小可调;取景窗四条边与四个角均可拖动缩放;仅影响预览,不影响导出;旧版草稿图设置自动迁移 | src/video_spoiler_shield.cpp、src/video_display.*、src/command/spoiler_shield.cpp、src/spoiler_shield_options.h、default_toolbar/menu/config.json | ea49d4c65 |
-| 防剧透字幕文字遮挡(Subtitle Text Mask) | 工具栏/菜单开关；开启后网格、编辑区、原文对照、翻译助手、样式助手、拼写检查、卡拉 OK 与音频标注里的未注释台词只显示实心块，标点、空格、换行与 `{...}` 内容保持可见、位置不变；实时预览隔字遮挡正文（每行第 1 个文字正常、第 2 个遮挡），标点与 `\p` 绘图仍可见；仍可盲改原文，搜索、复制、保存、截图和导出都用真实排版/真实台词 | src/dialogue_text_mask、src/subtitles_provider_libass.cpp、src/drawn_text_mask.*、src/styled_text_mask.*、src/video_preview_mask.h、src/command/grid.cpp、subprojects/libass.wrap、subprojects/packagefiles/libass-mask-glyphs.diff、default_toolbar/menu/config.json | 853984bac |
+| 防剧透字幕文字遮挡(Subtitle Text Mask) | 工具栏/菜单开关；开启后网格、编辑区、原文对照、翻译助手、样式助手、拼写检查、卡拉 OK 与音频标注里的未注释台词只显示实心块，标点、空格、换行与 `{...}` 内容保持可见、位置不变；实时预览用可配置的替换符（默认 X）改写正文并重新排版，标点与 `\p` 绘图仍可见；工具栏末尾有统一设置按钮；仍可盲改原文，搜索、复制、保存、截图和导出都用真实排版/真实台词 | src/dialogue_text_mask、src/subtitles_provider_libass.cpp、src/command/mask_settings.cpp、src/drawn_text_mask.*、src/styled_text_mask.*、src/video_preview_mask.h、src/command/grid.cpp、default_toolbar/menu/config.json | 853984bac |
 <!-- vibe-feature-registry:end -->
 
 # Aegisub

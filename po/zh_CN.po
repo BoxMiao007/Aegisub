@@ -7596,3 +7596,49 @@ msgstr "重置取景窗"
 #: ../src/command/video.cpp
 msgid "Reset the reveal area to its default position and size"
 msgstr "把取景窗恢复到默认位置和大小"
+
+#: ../src/command/mask_settings.cpp
+msgid "Mask Settings"
+msgstr "遮挡设置"
+
+#: ../src/command/mask_settings.cpp
+msgid "Enable spoiler shield"
+msgstr "启用防剧透遮罩"
+
+#: ../src/command/mask_settings.cpp
+msgid "Hide effect"
+msgstr "遮挡效果"
+
+#: ../src/command/mask_settings.cpp
+msgid "Fill colour"
+msgstr "填充颜色"
+
+#: ../src/command/mask_settings.cpp
+msgid "Mosaic block size"
+msgstr "马赛克块大小"
+
+#: ../src/command/mask_settings.cpp
+msgid "Subtitle text mask"
+msgstr "字幕文字遮挡"
+
+#: ../src/command/mask_settings.cpp
+msgid "Enable subtitle text mask"
+msgstr "启用遮挡字幕文字"
+
+#: ../src/command/mask_settings.cpp
+msgid "Replacement character"
+msgstr "替换字符"
+
+#: ../src/command/mask_settings.cpp
+msgid "Empty or invalid characters fall back to X"
+msgstr "替换字符为空或含非法字符时自动改用 X"
+
+#: ../src/command/mask_settings.cpp
+msgid "OK"
+msgstr "确定"
+
+#: ../src/command/mask_settings.cpp
+msgid "&Apply"
+msgstr "应用(&A)"
+
+

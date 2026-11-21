@@ -4,6 +4,7 @@
 #pragma once
 
 #include <cstddef>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -19,6 +20,10 @@ namespace agi::ass {
 	/// 不因 \p 豁免括号外的绘图命令或坐标，以免无效绘图暴露正文。
 	std::vector<MaskRange> DialogueMaskRanges(std::string_view text, bool ass_syntax = true);
 
-	/// 返回覆盖该字节区间的字素序号；未被任何范围覆盖（标点、空白、绘图等）时返回 ranges.size()。
-	std::size_t MaskRangeIndexAt(const std::vector<MaskRange>& ranges, std::size_t offset, std::size_t length);
+	/// 规范化替换符：空串、非法 UTF-8、含 ASS 特殊字符（{} \ 换行）时回退为 "X"。
+	std::string NormalizeMaskToken(std::string_view token);
+
+	/// 把正文中每个需要遮挡的字素替换成 token，保留标点、空白、转义、标签与 \p 绘图。
+	/// 用于视频预览：只改渲染用的副本，不接触真实台词。
+	std::string DialogueMaskReplace(std::string_view text, std::string_view token, bool ass_syntax = true);
 }

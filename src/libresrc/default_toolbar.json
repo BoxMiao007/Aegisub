@@ -62,7 +62,8 @@
         "grid/tag/cycle_hiding",
         "",
         "video/spoiler_shield",
-        "subtitle/text_mask"
+        "subtitle/text_mask",
+        "subtitle/mask_settings"
     ],
     "video" : [
         "video/play",

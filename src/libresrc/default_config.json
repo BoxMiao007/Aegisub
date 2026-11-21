@@ -378,6 +378,7 @@
 		},
 		"Character Limit" : 40,
 		"Text Mask" : false,
+		"Text Mask Replacement" : "X",
 		"Default Resolution" : {
 			"Auto" : true,
 			"Height" : 720,

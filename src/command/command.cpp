@@ -82,6 +82,7 @@ void init_edit();
 void init_grid();
 void init_help();
 void init_keyframe();
+void init_mask_settings();
 void init_recent();
 void init_spoiler_shield();
 void init_subtitle();
@@ -100,6 +101,7 @@ void init_builtin_commands() {
 	init_grid();
 	init_help();
 	init_keyframe();
+	init_mask_settings();
 	init_recent();
 	init_spoiler_shield();
 	init_subtitle();

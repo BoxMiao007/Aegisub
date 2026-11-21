@@ -1,6 +1,6 @@
 project('Aegisub', ['c', 'cpp'],
         license: 'BSD-3-Clause',
-        meson_version: '>=0.63.0',
+        meson_version: '>=0.60.0',
         default_options: [
             'cpp_std=c++20',
             'warning_level=3',

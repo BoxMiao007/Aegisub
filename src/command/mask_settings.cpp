@@ -1,0 +1,133 @@
+// Copyright (c) 2026, BoxMiao007
+// SPDX-License-Identifier: ISC
+
+/// @file command/mask_settings.cpp
+/// @brief Settings dialog shared by the spoiler shield and subtitle text mask
+/// @ingroup command
+
+#include "command.h"
+
+#include "../compat.h"
+#include "../include/aegisub/context.h"
+#include "../libresrc/libresrc.h"
+#include "../options.h"
+#include "../spoiler_shield_options.h"
+#include "../video_display.h"
+
+#include <wx/button.h>
+#include <wx/checkbox.h>
+#include <wx/choice.h>
+#include <wx/clrpicker.h>
+#include <wx/dialog.h>
+#include <wx/sizer.h>
+#include <wx/spinctrl.h>
+#include <wx/statbox.h>
+#include <wx/stattext.h>
+#include <wx/textctrl.h>
+
+namespace {
+using cmd::Command;
+
+class MaskSettingsDialog final : public wxDialog {
+	agi::Context *context;
+	wxCheckBox *shield_enabled;
+	wxChoice *shield_effect;
+	wxColourPickerCtrl *shield_color;
+	wxSpinCtrl *mosaic_block;
+	wxCheckBox *mask_enabled;
+	wxTextCtrl *replacement;
+
+	void Apply() {
+		OPT_SET(spoiler::Enabled)->SetBool(shield_enabled->GetValue());
+		OPT_SET(spoiler::EffectKey)->SetInt(shield_effect->GetSelection() == 1 ? 1 : 0);
+		OPT_SET(spoiler::Color)->SetColor(from_wx(shield_color->GetColour()));
+		OPT_SET(spoiler::MosaicBlock)->SetInt(mosaic_block->GetValue());
+		OPT_SET("Subtitle/Text Mask")->SetBool(mask_enabled->GetValue());
+		OPT_SET("Subtitle/Text Mask Replacement")->SetString(from_wx(replacement->GetValue()));
+	}
+
+	void Row(wxSizer *sizer, wxString const& label, wxWindow *control) {
+		auto *row = new wxBoxSizer(wxHORIZONTAL);
+		row->Add(new wxStaticText(this, wxID_ANY, label), wxSizerFlags().CenterVertical().Border(wxRIGHT, 8));
+		row->Add(control, wxSizerFlags().CenterVertical());
+		sizer->Add(row, wxSizerFlags().Border(wxALL, 4));
+	}
+
+public:
+	MaskSettingsDialog(wxWindow *parent, agi::Context *c)
+	: wxDialog(parent, wxID_ANY, _("Mask Settings")), context(c)
+	{
+		auto *root = new wxBoxSizer(wxVERTICAL);
+
+		auto *shield = new wxStaticBoxSizer(wxVERTICAL, this, _("Spoiler Shield"));
+		shield_enabled = new wxCheckBox(this, wxID_ANY, _("Enable spoiler shield"));
+		shield_enabled->SetValue(OPT_GET(spoiler::Enabled)->GetBool());
+		shield->Add(shield_enabled, wxSizerFlags().Border(wxALL, 4));
+
+		shield_effect = new wxChoice(this, wxID_ANY);
+		shield_effect->Append(_("Solid Colour"));
+		shield_effect->Append(_("Mosaic"));
+		shield_effect->SetSelection(OPT_GET(spoiler::EffectKey)->GetInt() == 1 ? 1 : 0);
+		Row(shield, _("Hide effect"), shield_effect);
+
+		shield_color = new wxColourPickerCtrl(this, wxID_ANY, to_wx(OPT_GET(spoiler::Color)->GetColor()));
+		Row(shield, _("Fill colour"), shield_color);
+
+		mosaic_block = new wxSpinCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(90, -1));
+		mosaic_block->SetRange(2, 96);
+		mosaic_block->SetValue((int)OPT_GET(spoiler::MosaicBlock)->GetInt());
+		Row(shield, _("Mosaic block size"), mosaic_block);
+
+		auto *reset = new wxButton(this, wxID_ANY, _("Reset Reveal Area"));
+		reset->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
+			if (context && context->videoDisplay)
+				context->videoDisplay->ResetSpoilerShieldRect();
+		});
+		shield->Add(reset, wxSizerFlags().Border(wxALL, 4));
+
+		auto *text = new wxStaticBoxSizer(wxVERTICAL, this, _("Subtitle text mask"));
+		mask_enabled = new wxCheckBox(this, wxID_ANY, _("Enable subtitle text mask"));
+		mask_enabled->SetValue(OPT_GET("Subtitle/Text Mask")->GetBool());
+		text->Add(mask_enabled, wxSizerFlags().Border(wxALL, 4));
+
+		replacement = new wxTextCtrl(this, wxID_ANY, to_wx(OPT_GET("Subtitle/Text Mask Replacement")->GetString()), wxDefaultPosition, wxSize(160, -1));
+		Row(text, _("Replacement character"), replacement);
+		text->Add(new wxStaticText(this, wxID_ANY, _("Empty or invalid characters fall back to X")), wxSizerFlags().Border(wxLEFT | wxRIGHT | wxBOTTOM, 4));
+
+		root->Add(shield, wxSizerFlags().Expand().Border(wxALL, 8));
+		root->Add(text, wxSizerFlags().Expand().Border(wxLEFT | wxRIGHT, 8));
+
+		auto *buttons = new wxBoxSizer(wxHORIZONTAL);
+		buttons->Add(new wxButton(this, wxID_OK, _("OK")), wxSizerFlags().Border(wxRIGHT, 6));
+		buttons->Add(new wxButton(this, wxID_APPLY, _("&Apply")), wxSizerFlags().Border(wxLEFT, 6));
+		buttons->Add(new wxButton(this, wxID_CANCEL, _("Cancel")), wxSizerFlags().Border(wxLEFT, 6));
+		root->Add(buttons, wxSizerFlags().Expand().Border(wxALL, 8));
+		SetSizerAndFit(root);
+		SetSize(wxSize(560, 700));
+		CentreOnParent();
+
+		Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { Apply(); }, wxID_APPLY);
+		Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { Apply(); EndModal(wxID_OK); }, wxID_OK);
+		Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { EndModal(wxID_CANCEL); }, wxID_CANCEL);
+	}
+};
+
+struct subtitle_mask_settings final : public Command {
+	CMD_NAME("subtitle/mask_settings")
+	CMD_ICON(options_button)
+	STR_MENU("&Mask Settings...")
+	STR_DISP("Mask Settings")
+	STR_HELP("Configure the spoiler shield and the subtitle text mask")
+
+	void operator()(agi::Context *c) override {
+		MaskSettingsDialog dialog(c->parent, c);
+		dialog.ShowModal();
+	}
+};
+}
+
+namespace cmd {
+void init_mask_settings() {
+	reg(std::make_unique<subtitle_mask_settings>());
+}
+}
