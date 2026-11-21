@@ -17,13 +17,16 @@
 #pragma once
 
 #include "include/aegisub/video_provider.h"
+#include "video_preview_mask.h"
 
 #include <libaegisub/exception.h>
 #include <libaegisub/fs.h>
 
 #include <atomic>
+#include <cstdint>
 #include <memory>
 #include <set>
+#include <string>
 #include <wx/event.h>
 
 class AssDialogue;
@@ -69,7 +72,7 @@ class AsyncVideoProvider {
 	/// lines have actually changed
 	bool NeedUpdate(std::vector<AssDialogueBase const*> const& visible_lines);
 
-	std::shared_ptr<VideoFrame> ProcFrame(int frame, double time, bool raw = false);
+	std::shared_ptr<VideoFrame> ProcFrame(int frame, double time, bool raw = false, bool text_mask = false, std::string text_token = "X");
 
 	/// Produce a frame if req_version is still the current version
 	void ProcAsync(uint_fast32_t req_version, bool check_updated);
@@ -77,6 +80,9 @@ class AsyncVideoProvider {
 	/// Monotonic counter used to drop frames when changes arrive faster than
 	/// they can be rendered
 	std::atomic<uint_fast32_t> version{ 0 };
+	VideoPreviewMask preview_mask;
+	/// 预览替换符，主线程写入、工作线程读取
+	std::atomic<std::shared_ptr<const std::string>> preview_token{std::make_shared<const std::string>("X")};
 
 	std::vector<std::shared_ptr<VideoFrame>> buffers;
 
@@ -84,6 +90,12 @@ class AsyncVideoProvider {
 	VideoFrame GetBlankFrame(bool white);
 
 public:
+	/// 切换实时预览的防剧透模式；只影响显示取帧，不改变截图、复制或导出。
+	void SetPreviewTextMask(bool enabled);
+	/// 设置预览替换符；只影响显示取帧。
+	void SetPreviewTextReplacement(std::string token);
+	bool AcceptPreview(VideoPreviewMask::Token token) const { return preview_mask.Accept(token); }
+
 	/// @brief Load the passed subtitle file
 	/// @param subs File to load
 	///
@@ -152,9 +164,10 @@ struct FrameReadyEvent final : public wxEvent {
 	std::shared_ptr<VideoFrame> frame;
 	/// Time which was used for subtitle rendering
 	double time;
+	VideoPreviewMask::Token preview;
 	wxEvent *Clone() const override { return new FrameReadyEvent(*this); };
-	FrameReadyEvent(std::shared_ptr<VideoFrame> frame, double time)
-	: frame(std::move(frame)), time(time) { }
+	FrameReadyEvent(std::shared_ptr<VideoFrame> frame, double time, VideoPreviewMask::Token preview)
+	: frame(std::move(frame)), time(time), preview(preview) { }
 };
 
 // These exceptions are wxEvents so that they can be passed directly back to

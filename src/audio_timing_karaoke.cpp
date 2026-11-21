@@ -266,7 +266,7 @@ void AudioTimingControllerKaraoke::Revert() {
 	for (auto it = kara->begin(); it != kara->end(); ++it) {
 		if (it != kara->begin())
 			markers.emplace_back(it->start_time, &separator_pen, AudioMarker::Feet_None);
-		labels.push_back(AudioLabel{to_wx(it->text), TimeRange(it->start_time, it->start_time + it->duration)});
+		labels.push_back(AudioLabel{to_wx(it->text), TimeRange(it->start_time, it->start_time + it->duration), !active_line->Comment});
 	}
 
 	AnnounceUpdatedPrimaryRange();

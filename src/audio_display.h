@@ -64,6 +64,7 @@ class AudioMarkerInteractionObject;
 /// and the timing controller, using an audio renderer instance.
 class AudioDisplay: public wxWindow {
 	agi::signal::Connection audio_open_connection;
+	agi::signal::Connection text_mask_connection;
 
 	std::vector<agi::signal::Connection> connections;
 	std::vector<agi::signal::Connection> timing_controller_connections;

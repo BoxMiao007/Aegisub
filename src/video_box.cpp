@@ -105,6 +105,7 @@ VideoBox::VideoBox(wxWindow *parent, bool isDetached, agi::Context *context)
 		context->project->AddVideoProviderListener(&VideoBox::UpdateTimeBoxes, this),
 		context->selectionController->AddSelectionListener(&VideoBox::UpdateTimeBoxes, this),
 		context->videoController->AddSeekListener(&VideoBox::UpdateTimeBoxes, this),
+
 	});
 }
 

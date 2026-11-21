@@ -98,6 +98,7 @@ class AudioKaraoke final : public wxWindow, private agi::signal::ConnectionScope
 
 	/// Mapping from character index to byte position in the relevant syllable's text
 	std::vector<size_t> char_to_byte;
+	std::vector<bool> mask_char;
 
 	/// Cached width of characters from GetTextExtent
 	std::unordered_map<std::string, int, StringHash, std::equal_to<>> char_widths;

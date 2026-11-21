@@ -22,17 +22,19 @@
 #include "include/aegisub/subtitles_provider.h"
 #include "video_frame.h"
 #include "video_provider_manager.h"
+#include "options.h"
 
 #include <libaegisub/dispatch.h>
 
 #include <boost/gil.hpp>
+
 
 enum {
 	NEW_SUBS_FILE = -1,
 	SUBS_FILE_ALREADY_LOADED = -2
 };
 
-std::shared_ptr<VideoFrame> AsyncVideoProvider::ProcFrame(int frame_number, double time, bool raw) {
+std::shared_ptr<VideoFrame> AsyncVideoProvider::ProcFrame(int frame_number, double time, bool raw, bool text_mask, std::string text_token) {
 	// Find an unused buffer to use or allocate a new one if needed
 	std::shared_ptr<VideoFrame> frame;
 	for (auto& buffer : buffers) {
@@ -75,10 +77,16 @@ std::shared_ptr<VideoFrame> AsyncVideoProvider::ProcFrame(int frame_number, doub
 	}
 	catch (agi::Exception const& err) { throw SubtitlesProviderErrorEvent(err.GetMessage()); }
 
+	if (subs_provider)
+		subs_provider->SetTextReplacement(text_mask, text_token);
+
 	try {
 		subs_provider->DrawSubtitles(*frame, time / 1000.);
 	}
 	catch (agi::UserCancelException const&) { }
+
+	if (subs_provider)
+		subs_provider->SetTextReplacement(false, text_token);
 
 	return frame;
 }
@@ -162,12 +170,27 @@ AsyncVideoProvider::AsyncVideoProvider(agi::fs::path const& video_filename, agi:
 , subs_provider(get_subs_provider(parent, br))
 , source_provider(VideoProviderFactory::GetProvider(video_filename, colormatrix, br))
 , parent(parent)
+, preview_mask(OPT_GET("Subtitle/Text Mask")->GetBool())
 {
 }
 
 AsyncVideoProvider::~AsyncVideoProvider() {
 	// Block until all currently queued jobs are complete
 	worker->Sync([]{});
+}
+
+void AsyncVideoProvider::SetPreviewTextMask(bool enabled) {
+	if (!preview_mask.Set(enabled)) return;
+	uint_fast32_t request = ++version;
+	worker->Async([this, request] { ProcAsync(request, false); });
+}
+
+void AsyncVideoProvider::SetPreviewTextReplacement(std::string token) {
+	auto next = std::make_shared<const std::string>(std::move(token));
+	auto prev = preview_token.exchange(next);
+	if (prev && *prev == *next) return;
+	uint_fast32_t request = ++version;
+	worker->Async([this, request] { ProcAsync(request, false); });
 }
 
 void AsyncVideoProvider::LoadSubtitles(const AssFile *new_subs) throw() {
@@ -244,7 +267,7 @@ void AsyncVideoProvider::ProcAsync(uint_fast32_t req_version, bool check_updated
 	if (req_version < version || frame_number < 0) return;
 
 	std::vector<AssDialogueBase const*> visible_lines;
-	for (auto const& line : subs->Events) {
+	if (subs) for (auto const& line : subs->Events) {
 		if (!line.Comment && !(line.Start > time || line.End <= time))
 			visible_lines.push_back(&line);
 	}
@@ -258,7 +281,12 @@ void AsyncVideoProvider::ProcAsync(uint_fast32_t req_version, bool check_updated
 	last_rendered = frame_number;
 
 	try {
-		auto evt = new FrameReadyEvent(ProcFrame(frame_number, time), time);
+		auto token = preview_mask.Capture();
+		// 实时预览用替换符改写正文；导出、截图与复制走 GetFrame 默认路径，不受影响。
+		auto token_text = preview_token.load();
+		auto frame = ProcFrame(frame_number, time, false, token.Masked(), *token_text);
+		if (req_version != version || !preview_mask.Accept(token)) return;
+		auto evt = new FrameReadyEvent(std::move(frame), time, token);
 		evt->SetEventType(EVT_FRAME_READY);
 		parent->QueueEvent(evt);
 	}

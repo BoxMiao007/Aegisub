@@ -16,6 +16,8 @@
 
 #include "grid_column.h"
 
+#include "drawn_text_mask.h"
+
 #include "ass_dialogue.h"
 #include "ass_file.h"
 #include "compat.h"
@@ -367,9 +369,9 @@ public:
 	bool CanHide() const override { return false; }
 	bool RefreshOnTextChange() const override { return true; }
 
-	wxString Value(const AssDialogue *d, const agi::Context *) const override {
+	wxString Value(const AssDialogue *d, const agi::Context *c) const override {
 		wxString str;
-		int mode = override_mode->GetInt();
+		int mode = c && !d->Comment && OPT_GET("Subtitle/Text Mask")->GetBool() ? 0 : override_mode->GetInt();
 
 		// Show overrides
 		if (mode == 0)
@@ -394,6 +396,14 @@ public:
 		if (str.size() > 512)
 			str = str.Left(512) + "...";
 		return str;
+	}
+
+	void Paint(wxDC &dc, int x, int y, const AssDialogue *d, const agi::Context *c) const override {
+		auto text = Value(d, c);
+		if (!d->Comment && OPT_GET("Subtitle/Text Mask")->GetBool())
+			subtitle_mask::Draw(dc, text, x + 4, y + 2);
+		else
+			dc.DrawText(text, x + 4, y + 2);
 	}
 
 	int Width(const agi::Context *, WidthHelper &) const override {

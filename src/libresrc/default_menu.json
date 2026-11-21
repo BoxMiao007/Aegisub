@@ -134,6 +134,8 @@
         { "command" : "app/display/audio_subs" },
         { "command" : "app/display/full" },
         {},
+        { "command" : "subtitle/text_mask" },
+        {},
         { "command" : "grid/tags/show" },
         { "command" : "grid/tags/simplify" },
         { "command" : "grid/tags/hide" },
@@ -162,19 +164,6 @@
         { "command" : "video/frame/copy/subs" },
         {},
         { "command" : "video/copy_coordinates" },
-        { "command" : "video/reset_pan" },
-        {},
-        { "submenu" : "video_context/spoiler_shield", "text" : "Spoiler &Shield" }
-    ],
-    "video_context/spoiler_shield" : [
-        { "command" : "video/spoiler_shield" },
-        {},
-        { "command" : "video/spoiler_shield/effect/solid" },
-        { "command" : "video/spoiler_shield/effect/mosaic" },
-        {},
-        { "command" : "video/spoiler_shield/color" },
-        { "command" : "video/spoiler_shield/strength" },
-        {},
-        { "command" : "video/spoiler_shield/reset" }
+        { "command" : "video/reset_pan" }
     ]
 }

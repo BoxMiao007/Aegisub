@@ -53,9 +53,10 @@ wxString format_missing(wxString const& str) {
 }
 }
 
-FontCollector::FontCollector(FontCollectorStatusCallback status_callback)
+FontCollector::FontCollector(FontCollectorStatusCallback status_callback, FontGlyphWarning glyph_warning)
 : status_callback(std::move(status_callback))
 , lister(this->status_callback)
+, glyph_warning(std::move(glyph_warning))
 {
 }
 
@@ -178,11 +179,12 @@ void FontCollector::ProcessChunk(std::pair<StyleInfo, UsageData> const& style) {
 		if (res.fake_italic)
 			status_callback(fmt_tl("'%s' does not have an italic variant.\n", style.first.facename), 3);
 
-		if (res.missing.size()) {
+		if (!res.missing.empty()) {
+			auto summary = fmt_tl("'%s' is missing %d glyphs used.\n", style.first.facename, res.missing.size());
 			if (res.missing.size() > 50)
-				status_callback(fmt_tl("'%s' is missing %d glyphs used.\n", style.first.facename, res.missing.size()), 2);
-			else if (res.missing.size() > 0)
-				status_callback(fmt_tl("'%s' is missing the following glyphs used: %s\n", style.first.facename, format_missing(res.missing)), 2);
+				status_callback(std::move(summary), 2);
+			else
+				glyph_warning(fmt_tl("'%s' is missing the following glyphs used: %s\n", style.first.facename, format_missing(res.missing)), std::move(summary));
 			PrintUsage(style.second);
 			++missing_glyphs;
 		}

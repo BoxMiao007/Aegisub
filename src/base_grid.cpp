@@ -109,6 +109,7 @@ BaseGrid::BaseGrid(wxWindow* parent, agi::Context *context)
 
 		OPT_SUB("Subtitle/Grid/Highlight Subtitles in Frame", &BaseGrid::OnHighlightVisibleChange, this),
 		OPT_SUB("Subtitle/Grid/Hide Overrides", [&](agi::OptionValue const&) { Refresh(false); }),
+		OPT_SUB("Subtitle/Text Mask", [&](agi::OptionValue const&) { Refresh(false); }),
 	});
 
 	Bind(wxEVT_CONTEXT_MENU, &BaseGrid::OnContextMenu, this);

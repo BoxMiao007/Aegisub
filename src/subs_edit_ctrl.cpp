@@ -28,6 +28,7 @@
 // Aegisub Project http://www.aegisub.org/
 
 #include "subs_edit_ctrl.h"
+#include "styled_text_mask.h"
 
 #include "ass_dialogue.h"
 #include "command/command.h"
@@ -44,10 +45,12 @@
 #include <libaegisub/ass/dialogue_parser.h>
 #include <libaegisub/calltip_provider.h>
 #include <libaegisub/character_count.h>
+#include <libaegisub/dialogue_text_mask.h>
 #include <libaegisub/spellchecker.h>
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/replace.hpp>
+#include <algorithm>
 #include <functional>
 
 #include <wx/clipbrd.h>
@@ -124,6 +127,7 @@ SubsTextEditCtrl::SubsTextEditCtrl(wxWindow* parent, wxSize wsize, long style, a
 	}
 
 	Bind(wxEVT_CONTEXT_MENU, &SubsTextEditCtrl::OnContextMenu, this);
+	Bind(wxEVT_STC_CHANGE, [this](wxStyledTextEvent&) { RefreshTextMask(); });
 	Bind(wxEVT_IDLE, std::bind(&SubsTextEditCtrl::UpdateCallTip, this));
 	Bind(wxEVT_STC_DOUBLECLICK, &SubsTextEditCtrl::OnDoubleClick, this);
 	Bind(wxEVT_STC_STYLENEEDED, [this](wxStyledTextEvent&) {
@@ -155,6 +159,7 @@ SubsTextEditCtrl::SubsTextEditCtrl(wxWindow* parent, wxSize wsize, long style, a
 
 	BindConnection(OPT_SUB("Colour/Subtitle/Background", &SubsTextEditCtrl::SetStyles, this));
 	BindConnection(OPT_SUB("Subtitle/Highlight/Syntax", &SubsTextEditCtrl::UpdateStyle, this));
+	BindConnection(OPT_SUB("Subtitle/Text Mask", &SubsTextEditCtrl::RefreshTextMask, this));
 	BindConnection(OPT_SUB("App/Call Tips", &SubsTextEditCtrl::UpdateCallTip, this));
 
 	Bind(wxEVT_MENU, [this](wxCommandEvent&) {
@@ -265,6 +270,7 @@ void SubsTextEditCtrl::SetStyles() {
 
 	SetCaretForeground(StyleGetForeground(ss::NORMAL));
 	StyleSetBackground(wxSTC_STYLE_DEFAULT, default_background);
+	RefreshTextMask();
 
 	// Misspelling indicator
 	IndicatorSetStyle(0,wxSTC_INDIC_SQUIGGLE);
@@ -289,10 +295,11 @@ void SubsTextEditCtrl::UpdateStyle() {
 
 	if (!OPT_GET("Subtitle/Highlight/Syntax")->GetBool()) {
 		SetStyling(line_text.size(), 0);
+		RefreshTextMask();
 		return;
 	}
 
-	if (line_text.empty()) return;
+	if (line_text.empty()) { RefreshTextMask(); return; }
 
 	SetIndicatorCurrent(0);
 	size_t pos = 0;
@@ -307,6 +314,34 @@ void SubsTextEditCtrl::UpdateStyle() {
 		}
 		pos += style_range.length;
 	}
+	RefreshTextMask();
+}
+
+void SubsTextEditCtrl::RefreshTextMask() {
+	bool allowed = text_mask_allowed;
+	if (context) {
+		auto line = context->selectionController->GetActiveLine();
+		allowed = allowed && line && !line->Comment;
+	}
+	subtitle_mask::Apply(*this, allowed && OPT_GET("Subtitle/Text Mask")->GetBool());
+}
+
+void SubsTextEditCtrl::SetTextMaskAllowed(bool allowed) {
+	text_mask_allowed = allowed;
+	RefreshTextMask();
+}
+
+bool SubsTextEditCtrl::IsMaskedPosition(int pos) {
+	if (pos < 0 || !text_mask_allowed || !OPT_GET("Subtitle/Text Mask")->GetBool()) return false;
+	if (context) {
+		auto line = context->selectionController->GetActiveLine();
+		if (!line || line->Comment) return false;
+	}
+	auto text = GetTextRaw();
+	auto ranges = agi::ass::DialogueMaskRanges(std::string_view(text.data(), text.length()));
+	return std::any_of(ranges.begin(), ranges.end(), [pos](auto const& range) {
+		return static_cast<size_t>(pos) >= range.start && static_cast<size_t>(pos) < range.start + range.length;
+	});
 }
 
 void SubsTextEditCtrl::UpdateCallTip() {
@@ -357,6 +392,7 @@ void SubsTextEditCtrl::SetTextTo(std::string const& text) {
 	}
 
 	SetEvtHandlerEnabled(true);
+	RefreshTextMask();
 	Thaw();
 }
 
@@ -387,7 +423,7 @@ void SubsTextEditCtrl::OnContextMenu(wxContextMenuEvent &event) {
 		activePos = PositionFromPoint(ScreenToClient(pos));
 
 	currentWordPos = GetBoundsOfWordAtPosition(activePos);
-	currentWord = line_text.substr(currentWordPos.first, currentWordPos.second);
+	currentWord = IsMaskedPosition(currentWordPos.first) ? std::string() : line_text.substr(currentWordPos.first, currentWordPos.second);
 
 	wxMenu menu;
 	if (spellchecker) {

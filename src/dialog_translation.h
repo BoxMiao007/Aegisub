@@ -38,6 +38,7 @@ class DialogTranslation final : public wxDialog {
 
 	agi::signal::Connection file_change_connection;
 	agi::signal::Connection active_line_connection;
+	agi::signal::Connection mask_connection;
 
 	/// The active line
 	AssDialogue *active_line;
@@ -65,6 +66,7 @@ class DialogTranslation final : public wxDialog {
 	void OnExternalCommit(int commit_type);
 
 	void UpdateDisplay();
+	void UpdateTextMask();
 
 	void OnActiveLineChanged(AssDialogue *new_line);
 

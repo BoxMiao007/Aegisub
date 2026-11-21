@@ -115,7 +115,10 @@ void AssDialogue::Parse(std::string const& raw) {
 		margin = mid(-9999, boost::lexical_cast<int>(tkn.next_tok()), 99999);
 	Effect = tkn.next_str_trim();
 
-	std::string text{tkn.next_tok().begin(), str.end()};
+	// next_tok() 是 str 的子视图，不能拿它的 begin() 去配 str.end()：
+	// 调试版 STL 会判定两个不同视图的迭代器非法（Release 下比较的是裸指针）。
+	const auto text_token = tkn.next_tok();
+	std::string text{text_token.data(), str.data() + str.size()};
 
 	if (text.size() > 1 && text[0] == '{' && text[1] == '=') {
 		static const boost::regex extradata_test("^\\{(=\\d+)+\\}");

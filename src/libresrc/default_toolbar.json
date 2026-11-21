@@ -59,7 +59,11 @@
         "subtitle/spellcheck",
         "",
         "app/options",
-        "grid/tag/cycle_hiding"
+        "grid/tag/cycle_hiding",
+        "",
+        "video/spoiler_shield",
+        "subtitle/text_mask",
+        "subtitle/mask_settings"
     ],
     "video" : [
         "video/play",
@@ -76,7 +80,6 @@
         "video/tool/clip",
         "video/tool/vector_clip",
         "",
-        "help/video",
-        "video/spoiler_shield"
+        "help/video"
     ]
 }

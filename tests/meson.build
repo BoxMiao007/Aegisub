@@ -23,6 +23,9 @@ tests_src = [
     'tests/charset.cpp',
     'tests/color.cpp',
     'tests/dialogue_lexer.cpp',
+    'tests/dialogue_text_mask.cpp',
+    'tests/video_preview_mask.cpp',
+
     'tests/format.cpp',
     'tests/fs.cpp',
     'tests/hotkey.cpp',

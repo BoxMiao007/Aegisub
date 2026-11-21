@@ -31,6 +31,8 @@
 #include <libaegisub/fs.h>
 #include <libaegisub/path.h>
 
+#include <algorithm>
+
 #include <wx/button.h>
 #include <wx/dialog.h>
 #include <wx/dirdlg.h>
@@ -55,12 +57,20 @@ enum class FcMode {
 	SymlinkToFolder = 4
 };
 
+struct LogEntry {
+	int colour;
+	wxString text;
+	wxString masked;
+};
+
 class DialogFontsCollector final : public wxDialog {
 	AssFile *subs;
 	agi::Path &path;
 	FcMode mode = FcMode::CheckFontsOnly;
 
 	wxStyledTextCtrl *collection_log;
+	std::vector<LogEntry> messages;
+	agi::signal::Connection mask_connection;
 	wxButton *close_btn;
 	wxButton *dest_browse_button;
 	wxButton *start_btn;
@@ -73,7 +83,9 @@ class DialogFontsCollector final : public wxDialog {
 	void OnRadio(wxCommandEvent &e);
 
 	/// Append text to log message from worker thread
-	void OnAddText(ValueEvent<std::pair<int, wxString>>& event);
+	void OnAddText(ValueEvent<LogEntry>& event);
+	void AppendLog(LogEntry const& entry);
+	void RefreshLog();
 	/// Collection complete notification from the worker thread to reenable buttons
 	void OnCollectionComplete(wxThreadEvent &);
 
@@ -83,19 +95,21 @@ public:
 	DialogFontsCollector(agi::Context *c);
 };
 
-using color_str_pair = std::pair<int, wxString>;
-wxDEFINE_EVENT(EVT_ADD_TEXT, ValueEvent<color_str_pair>);
+wxDEFINE_EVENT(EVT_ADD_TEXT, ValueEvent<LogEntry>);
 wxDEFINE_EVENT(EVT_COLLECTION_DONE, wxThreadEvent);
 
 void FontsCollectorThread(AssFile *subs, agi::fs::path const& destination, FcMode oper, wxEvtHandler *collector) {
 	agi::dispatch::Background().Async([=]{
 		auto AppendText = [&](wxString text, int colour) {
-			collector->AddPendingEvent(ValueEvent<color_str_pair>(EVT_ADD_TEXT, -1, {colour, text.Clone()}));
+			collector->AddPendingEvent(ValueEvent<LogEntry>(EVT_ADD_TEXT, -1, {colour, text.Clone(), {}}));
+		};
+		auto glyph_warning = [&](wxString text, wxString summary) {
+			collector->AddPendingEvent(ValueEvent<LogEntry>(EVT_ADD_TEXT, -1, {2, text.Clone(), summary.Clone()}));
 		};
 
 		std::vector<agi::fs::path> paths;
 		try {
-			paths = FontCollector(AppendText).GetFontPaths(subs);
+			paths = FontCollector(AppendText, glyph_warning).GetFontPaths(subs);
 		}
 		catch (agi::EnvironmentError const& err) {
 			AppendText(fmt_tl("* An error occurred when enumerating the used fonts: %s.\n", err.GetMessage()), 2);
@@ -293,11 +307,13 @@ DialogFontsCollector::DialogFontsCollector(agi::Context *c)
 	dest_browse_button->Bind(wxEVT_BUTTON, &DialogFontsCollector::OnBrowse, this);
 	collection_mode->Bind(wxEVT_RADIOBOX, &DialogFontsCollector::OnRadio, this);
 	button_sizer->GetHelpButton()->Bind(wxEVT_BUTTON, std::bind(&HelpButton::OpenPage, "Fonts Collector"));
+	mask_connection = OPT_SUB("Subtitle/Text Mask", &DialogFontsCollector::RefreshLog, this);
 	Bind(EVT_ADD_TEXT, &DialogFontsCollector::OnAddText, this);
 	Bind(EVT_COLLECTION_DONE, &DialogFontsCollector::OnCollectionComplete, this);
 }
 
 void DialogFontsCollector::OnStart(wxCommandEvent &) {
+	messages.clear();
 	collection_log->SetReadOnly(false);
 	collection_log->ClearAll();
 	collection_log->SetReadOnly(true);
@@ -401,15 +417,35 @@ void DialogFontsCollector::UpdateControls() {
 #endif
 }
 
-void DialogFontsCollector::OnAddText(ValueEvent<color_str_pair> &event) {
-	auto const& str = event.Get();
+void DialogFontsCollector::OnAddText(ValueEvent<LogEntry> &event) {
+	messages.push_back(event.Get());
+	AppendLog(messages.back());
+}
+
+void DialogFontsCollector::RefreshLog() {
+	// 保留正在浏览的位置；缺字清单缩成数量后，选区可能需要收回到末尾。
+	int first_line = collection_log->GetFirstVisibleLine();
+	int anchor = collection_log->GetAnchor(), current = collection_log->GetCurrentPos();
+	collection_log->Freeze();
+	collection_log->SetReadOnly(false);
+	collection_log->ClearAll();
+	for (auto const& entry : messages) AppendLog(entry);
+	int end = collection_log->GetTextLength();
+	collection_log->SetSelection(std::min(anchor, end), std::min(current, end));
+	collection_log->SetFirstVisibleLine(first_line);
+	collection_log->SetReadOnly(true);
+	collection_log->Thaw();
+}
+
+void DialogFontsCollector::AppendLog(LogEntry const& entry) {
 	collection_log->SetReadOnly(false);
 	int pos = collection_log->GetLength();
-	auto const& utf8 = str.second.utf8_str();
+	auto const& text = !entry.masked.empty() && OPT_GET("Subtitle/Text Mask")->GetBool() ? entry.masked : entry.text;
+	auto const& utf8 = text.utf8_str();
 	collection_log->AppendTextRaw(utf8.data(), utf8.length());
-	if (str.first) {
+	if (entry.colour) {
 		collection_log->StartStyling(pos);
-		collection_log->SetStyling(utf8.length(), str.first);
+		collection_log->SetStyling(utf8.length(), entry.colour);
 	}
 	collection_log->GotoPos(pos + utf8.length());
 	collection_log->SetReadOnly(true);

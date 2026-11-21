@@ -102,6 +102,7 @@ public:
 		wxString text;
 		/// Range which this label applies to
 		TimeRange range;
+		bool dialogue_text = false;
 	};
 
 	/// @brief Get labels in a time range

@@ -116,6 +116,7 @@ VideoDisplay::VideoDisplay(wxToolBar *toolbar, bool freeSize, wxComboBox *zoomBo
 	con->videoController->Bind(EVT_FRAME_READY, &VideoDisplay::UploadFrameData, this);
 	connections = agi::signal::make_vector({
 		con->project->AddVideoProviderListener([this] (AsyncVideoProvider *provider) {
+			InvalidatePreview();
 			if (provider && render_failed) {
 				Unload();
 				render_failed = false;
@@ -124,6 +125,8 @@ VideoDisplay::VideoDisplay(wxToolBar *toolbar, bool freeSize, wxComboBox *zoomBo
 			FitClientSizeToVideo();
 		}),
 		con->videoController->AddARChangeListener(&VideoDisplay::FitClientSizeToVideo, this),
+		OPT_SUB("Subtitle/Text Mask", [this](agi::OptionValue const&) { InvalidatePreview(); }),
+		OPT_SUB("Subtitle/Text Mask Replacement", [this](agi::OptionValue const&) { InvalidatePreview(); }),
 	});
 
 	// Follow the spoiler shield settings here, not in the individual commands, so
@@ -224,7 +227,19 @@ bool VideoDisplay::InitContext() {
 	return true;
 }
 
+void VideoDisplay::InvalidatePreview() {
+	waiting_preview = true;
+	pending_frame.reset();
+	shield_src.reset();
+	shield_tex_dirty = true;
+	Render();
+}
+
 void VideoDisplay::UploadFrameData(FrameReadyEvent &evt) {
+	auto provider = con->project->VideoProvider();
+	if (!provider || !provider->AcceptPreview(evt.preview) ||
+		evt.preview.Masked() != OPT_GET("Subtitle/Text Mask")->GetBool()) return;
+	waiting_preview = false;
 	pending_frame = evt.frame;
 	shield_src = evt.frame;
 	shield_tex_dirty = true;
@@ -232,8 +247,16 @@ void VideoDisplay::UploadFrameData(FrameReadyEvent &evt) {
 }
 
 void VideoDisplay::Render() try {
-	if (render_failed || !con->project->VideoProvider() || !InitContext() || (!videoOut && !pending_frame))
+	if (render_failed || !con->project->VideoProvider() || !InitContext()) return;
+	if (waiting_preview) {
+		// 新模式的帧到达前同步清空前后台缓冲，旧字幕不留在窗口或显卡缓存里。
+		glClearColor(0, 0, 0, 1);
+		glClear(GL_COLOR_BUFFER_BIT);
+		SwapBuffers();
+		glClear(GL_COLOR_BUFFER_BIT);
 		return;
+	}
+	if (!videoOut && !pending_frame) return;
 
 	if (!videoOut)
 		videoOut = std::make_unique<VideoOutGL>();
