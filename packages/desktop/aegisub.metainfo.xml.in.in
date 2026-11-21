@@ -75,6 +75,11 @@
   </provides>
   <releases>
     <!-- TODO: automatic replace at config time -->
+    <release version="3.5.1-fork.3-pre.20261121" date="2026-11-21">
+      <description>
+        <p>实时预览改为可配置替换符遮挡正文（默认 X，标点与绘图保留），新增工具栏末尾「遮挡设置」按钮统一管理防剧透遮罩与字幕文字遮挡；移除遮罩右键子菜单，马赛克块大小改为拉杆，设置对话框支持确定/应用/取消。</p>
+      </description>
+    </release>
     <release version="3.5.1-fork.2-pre.20261119" date="2026-11-19">
       <description>
         <p>修复防剧透遮罩的旧设置迁移、缩放跳动、马赛克兼容与中文复数翻译等问题。</p>
