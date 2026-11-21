@@ -109,7 +109,7 @@ public:
 		buttons->Add(new wxButton(this, wxID_CANCEL, _("Cancel")), wxSizerFlags().Border(wxLEFT, 6));
 		root->Add(buttons, wxSizerFlags().Expand().Border(wxALL, 8));
 		SetSizerAndFit(root);
-		SetSize(wxSize(560, 700));
+		SetMinSize(wxSize(520, -1));
 		CentreOnParent();
 
 		Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { Apply(); }, wxID_APPLY);
