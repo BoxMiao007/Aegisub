@@ -11,6 +11,7 @@
 namespace {
 using agi::ass::DialogueMaskRanges;
 using agi::ass::MaskRange;
+using agi::ass::MaskRangeIndexAt;
 
 void expect_ranges(std::string_view text, std::initializer_list<MaskRange> expected, bool ass_syntax = true) {
 	auto actual = DialogueMaskRanges(text, ass_syntax);
@@ -64,6 +65,23 @@ TEST(lagi_dialogue_text_mask, drawing_text_and_symbols_are_not_exempt) {
 	expect_ranges("$+\xE2\x88\x91\xC2\xB2\xE2\x98\x85", {
 		{0, 1}, {1, 1}, {2, 3}, {5, 2}, {7, 3}
 	}, false);
+}
+
+TEST(lagi_dialogue_text_mask, alternation_skips_punctuation_and_keeps_clusters_together) {
+	auto ranges = DialogueMaskRanges("\xE5\x88\xA5\xE5\x8E\xBB\xEF\xBC\x8C" "B2" "\xEF\xBC\x81");
+	ASSERT_EQ(4u, ranges.size());
+	EXPECT_EQ(0u, MaskRangeIndexAt(ranges, 0, 3));   // 别
+	EXPECT_EQ(1u, MaskRangeIndexAt(ranges, 3, 3));   // 去
+	EXPECT_EQ(ranges.size(), MaskRangeIndexAt(ranges, 6, 3)); // ，
+	EXPECT_EQ(2u, MaskRangeIndexAt(ranges, 9, 1));   // B
+	EXPECT_EQ(3u, MaskRangeIndexAt(ranges, 10, 1));  // 2
+
+	// 组合字素被拆成多个字形时，各段仍取同一个序号。
+	auto cluster = DialogueMaskRanges("e\xCC\x81Z");
+	ASSERT_EQ(2u, cluster.size());
+	EXPECT_EQ(0u, MaskRangeIndexAt(cluster, 0, 1));
+	EXPECT_EQ(0u, MaskRangeIndexAt(cluster, 1, 2));
+	EXPECT_EQ(1u, MaskRangeIndexAt(cluster, 3, 1));
 }
 
 TEST(lagi_dialogue_text_mask, malformed_utf8_is_masked) {

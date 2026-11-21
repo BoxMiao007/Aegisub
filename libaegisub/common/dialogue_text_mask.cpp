@@ -83,4 +83,12 @@ std::vector<MaskRange> DialogueMaskRanges(std::string_view text, bool ass_syntax
 	AppendPlain(ranges, text.substr(plain), plain, ass_syntax);
 	return ranges;
 }
+
+std::size_t MaskRangeIndexAt(const std::vector<MaskRange>& ranges, std::size_t offset, std::size_t length) {
+	for (std::size_t i = 0; i < ranges.size(); ++i) {
+		if (offset < ranges[i].start + ranges[i].length && ranges[i].start < offset + length)
+			return i;
+	}
+	return ranges.size();
+}
 }

@@ -48,6 +48,7 @@
 #include <algorithm>
 #include <atomic>
 #include <boost/gil.hpp>
+#include <map>
 #include <memory>
 #include <mutex>
 
@@ -211,25 +212,22 @@ void LibassSubtitlesProvider::DrawSubtitles(VideoFrame &frame,double time) {
 	}
 
 	if (text_mask_enabled) {
-		// libass 只返回合并后的位图段，这里用补丁导出的逐字形盒把台词正文盖成实心块：
-		// 标点与 \p 绘图不在遮挡范围内，位置与排版保持不变。
+		// 隔字遮挡：每个事件从第 1 个正文文字开始交替，第 1 个正常、第 2 个遮、第 3 个正常……
+		// 标点、空白与 \p 绘图不占交替位；同一字素（含卡拉 OK 被拆开的段）总取同一奇偶。
 		ASS_GlyphBox *boxes = nullptr;
 		int count = ass_get_glyph_boxes(renderer(), &boxes);
+		std::map<const char *, std::vector<agi::ass::MaskRange>> ranges_cache;
 		for (int i = 0; i < count; ++i) {
 			ASS_GlyphBox const &box = boxes[i];
 			if (box.is_drawing || !box.text_length || !box.event_text)
 				continue;
 
-			bool masked = false;
-			auto ranges = agi::ass::DialogueMaskRanges(box.event_text);
-			for (auto const &range : ranges) {
-				if (range.start < box.text_offset + box.text_length &&
-				    box.text_offset < range.start + range.length) {
-					masked = true;
-					break;
-				}
-			}
-			if (!masked)
+			auto it = ranges_cache.find(box.event_text);
+			if (it == ranges_cache.end())
+				it = ranges_cache.emplace(box.event_text, agi::ass::DialogueMaskRanges(box.event_text)).first;
+			auto const &ranges = it->second;
+			auto index = agi::ass::MaskRangeIndexAt(ranges, box.text_offset, box.text_length);
+			if (index >= ranges.size() || index % 2 == 0)
 				continue;
 
 			int x0 = std::max(0, box.x - 1);
