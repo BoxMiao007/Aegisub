@@ -114,6 +114,9 @@ VideoDisplay::VideoDisplay(wxToolBar *toolbar, bool freeSize, wxComboBox *zoomBo
 	zoomBox->Bind(wxEVT_TEXT_ENTER, &VideoDisplay::SetWindowZoomFromBoxText, this);
 
 	con->videoController->Bind(EVT_FRAME_READY, &VideoDisplay::UploadFrameData, this);
+	cached_text_mask = OPT_GET("Subtitle/Text Mask")->GetBool();
+	cached_text_mask_token = OPT_GET("Subtitle/Text Mask Replacement")->GetString();
+
 	connections = agi::signal::make_vector({
 		con->project->AddVideoProviderListener([this] (AsyncVideoProvider *provider) {
 			InvalidatePreview();
@@ -125,8 +128,18 @@ VideoDisplay::VideoDisplay(wxToolBar *toolbar, bool freeSize, wxComboBox *zoomBo
 			FitClientSizeToVideo();
 		}),
 		con->videoController->AddARChangeListener(&VideoDisplay::FitClientSizeToVideo, this),
-		OPT_SUB("Subtitle/Text Mask", [this](agi::OptionValue const&) { InvalidatePreview(); }),
-		OPT_SUB("Subtitle/Text Mask Replacement", [this](agi::OptionValue const&) { InvalidatePreview(); }),
+		OPT_SUB("Subtitle/Text Mask", [this](agi::OptionValue const& v) {
+			bool value = v.GetBool();
+			if (value == cached_text_mask) return;
+			cached_text_mask = value;
+			InvalidatePreview();
+		}),
+		OPT_SUB("Subtitle/Text Mask Replacement", [this](agi::OptionValue const& v) {
+			std::string value = v.GetString();
+			if (value == cached_text_mask_token) return;
+			cached_text_mask_token = std::move(value);
+			InvalidatePreview();
+		}),
 	});
 
 	// Follow the spoiler shield settings here, not in the individual commands, so

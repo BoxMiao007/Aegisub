@@ -41,6 +41,7 @@
 #include "visual_tool_vector_clip.h"
 
 #include <memory>
+#include <string>
 #include <typeinfo>
 #include <vector>
 #include <wx/cursor.h>
@@ -68,6 +69,10 @@ class VideoDisplay final : public wxGLCanvas {
 	const agi::OptionValue* autohideTools;
 
 	agi::Context *con;
+
+	/// 缓存当前字幕遮挡选项，避免 Apply 重复写同值导致预览被清空
+	bool cached_text_mask = false;
+	std::string cached_text_mask_token = "X";
 
 	std::unique_ptr<wxMenu> context_menu;
 
