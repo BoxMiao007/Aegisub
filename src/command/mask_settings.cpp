@@ -8,6 +8,7 @@
 #include "command.h"
 
 #include "../compat.h"
+#include "../format.h"
 #include "../include/aegisub/context.h"
 #include "../libresrc/libresrc.h"
 #include "../options.h"
@@ -20,7 +21,7 @@
 #include <wx/clrpicker.h>
 #include <wx/dialog.h>
 #include <wx/sizer.h>
-#include <wx/spinctrl.h>
+#include <wx/slider.h>
 #include <wx/statbox.h>
 #include <wx/stattext.h>
 #include <wx/textctrl.h>
@@ -33,7 +34,8 @@ class MaskSettingsDialog final : public wxDialog {
 	wxCheckBox *shield_enabled;
 	wxChoice *shield_effect;
 	wxColourPickerCtrl *shield_color;
-	wxSpinCtrl *mosaic_block;
+	wxSlider *mosaic_block;
+	wxStaticText *mosaic_label;
 	wxCheckBox *mask_enabled;
 	wxTextCtrl *replacement;
 
@@ -73,10 +75,14 @@ public:
 		shield_color = new wxColourPickerCtrl(this, wxID_ANY, to_wx(OPT_GET(spoiler::Color)->GetColor()));
 		Row(shield, _("Fill colour"), shield_color);
 
-		mosaic_block = new wxSpinCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(90, -1));
-		mosaic_block->SetRange(2, 96);
-		mosaic_block->SetValue((int)OPT_GET(spoiler::MosaicBlock)->GetInt());
-		Row(shield, _("Mosaic block size"), mosaic_block);
+		mosaic_block = new wxSlider(this, wxID_ANY, (int)OPT_GET(spoiler::MosaicBlock)->GetInt(), 2, 96, wxDefaultPosition, wxSize(220, -1));
+		mosaic_label = new wxStaticText(this, wxID_ANY, fmt_wx("%d", mosaic_block->GetValue()));
+		mosaic_block->Bind(wxEVT_SLIDER, [this](wxCommandEvent& e) { mosaic_label->SetLabel(fmt_wx("%d", e.GetInt())); });
+		auto *block_row = new wxBoxSizer(wxHORIZONTAL);
+		block_row->Add(new wxStaticText(this, wxID_ANY, _("Mosaic block size")), wxSizerFlags().CenterVertical().Border(wxRIGHT, 8));
+		block_row->Add(mosaic_block, wxSizerFlags().CenterVertical());
+		block_row->Add(mosaic_label, wxSizerFlags().CenterVertical().Border(wxLEFT, 8));
+		shield->Add(block_row, wxSizerFlags().Border(wxALL, 4));
 
 		auto *reset = new wxButton(this, wxID_ANY, _("Reset Reveal Area"));
 		reset->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
