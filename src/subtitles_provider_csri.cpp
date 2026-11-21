@@ -39,7 +39,10 @@
 #include "subtitle_format_ass.h"
 #include "video_frame.h"
 
+#include <libaegisub/dialogue_text_mask.h>
+
 #include <mutex>
+#include <string>
 
 #ifdef WIN32
 #define CSRIAPI
@@ -58,15 +61,42 @@ struct closer {
 
 class CSRISubtitlesProvider final : public SubtitlesProvider {
 	std::unique_ptr<csri_inst, closer> instance;
+	std::unique_ptr<csri_inst, closer> masked_instance;
 	csri_rend *renderer = nullptr;
+	std::string source_data;
+	std::string masked_data;
+	std::string masked_token;
+	bool replacement_enabled = false;
+	std::string replacement_token;
+
+	/// 按当前替换符生成（或复用）预览专用的 CSRI 实例。调用方需持有 csri_mutex。
+	csri_inst *EnsureMaskedInstance() {
+		std::string token = agi::ass::NormalizeMaskToken(replacement_token);
+		if (masked_instance && masked_token == token)
+			return masked_instance.get();
+		masked_instance.reset();
+		masked_data = agi::ass::MaskAssData(source_data, token);
+		masked_instance.reset(csri_open_mem(renderer, masked_data.data(), masked_data.size(), nullptr));
+		masked_token = token;
+		return masked_instance.get();
+	}
 
 	void LoadSubtitles(const char *data, size_t len) override {
 		std::lock_guard<std::mutex> lock(csri_mutex);
+		source_data.assign(data, len);
 		instance.reset(csri_open_mem(renderer, data, len, nullptr));
+		masked_instance.reset();
+		masked_data.clear();
+		masked_token.clear();
 	}
 
 public:
 	CSRISubtitlesProvider(std::string subType);
+
+	void SetTextReplacement(bool enabled, std::string const& token) override {
+		replacement_enabled = enabled;
+		replacement_token = token;
+	}
 
 	void DrawSubtitles(VideoFrame &dst, double time) override;
 };
@@ -101,9 +131,11 @@ void CSRISubtitlesProvider::DrawSubtitles(VideoFrame &dst, double time) {
 	csri_fmt format = { frame.pixfmt, static_cast<unsigned>(dst.width), static_cast<unsigned>(dst.height) };
 
 	std::lock_guard<std::mutex> lock(csri_mutex);
-	if (!csri_request_fmt(instance.get(), &format))
+	csri_inst *active = replacement_enabled ? EnsureMaskedInstance() : instance.get();
+	if (!active) return;
+	if (!csri_request_fmt(active, &format))
 		// Add 1e-9 to guard against floating point imprecision errors on int -> float -> *1000 -> int round trips
-		csri_render(instance.get(), &frame, time + 1e-9);
+		csri_render(active, &frame, time + 1e-9);
 }
 }
 

@@ -168,4 +168,30 @@ std::string DialogueMaskReplace(std::string_view text, std::string_view token, b
 	append_plain(text.substr(plain));
 	return out;
 }
+
+std::string MaskAssData(std::string_view data, std::string_view token) {
+	std::string out;
+	out.reserve(data.size());
+	std::size_t pos = 0;
+	while (pos <= data.size()) {
+		auto nl = data.find('\n', pos);
+		std::string_view line(data.data() + pos, (nl == std::string_view::npos ? data.size() : nl) - pos);
+		bool dialogue = line.size() >= 9 && line.substr(0, 9) == "Dialogue:";
+		if (!dialogue) {
+			out.append(line);
+		} else {
+			std::size_t text = 9;
+			int commas = 0;
+			for (; text < line.size(); ++text) {
+				if (line[text] == ',' && ++commas == 9) { ++text; break; }
+			}
+			out.append(line.substr(0, text));
+			out.append(DialogueMaskReplace(line.substr(text), token));
+		}
+		if (nl == std::string_view::npos) break;
+		out.push_back('\n');
+		pos = nl + 1;
+	}
+	return out;
+}
 }

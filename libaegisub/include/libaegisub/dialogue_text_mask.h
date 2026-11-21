@@ -26,4 +26,7 @@ namespace agi::ass {
 	/// 把正文中每个需要遮挡的字素替换成 token，保留标点、空白、转义、标签与 \p 绘图。
 	/// 用于视频预览：只改渲染用的副本，不接触真实台词。
 	std::string DialogueMaskReplace(std::string_view text, std::string_view token, bool ass_syntax = true);
+
+	/// 对整份 ASS 文本只替换 Dialogue 行正文，供预览渲染副本使用。
+	std::string MaskAssData(std::string_view data, std::string_view token);
 }

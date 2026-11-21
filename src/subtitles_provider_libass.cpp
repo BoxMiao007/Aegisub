@@ -84,34 +84,6 @@ struct cache_thread_shared {
 	~cache_thread_shared() { if (renderer) ass_renderer_done(renderer); }
 };
 
-/// 复制序列化字幕，只把 Dialogue 行的正文替换成 token，其余字节原样保留。
-std::string MaskAssData(std::string const& data, std::string_view token) {
-	std::string out;
-	out.reserve(data.size());
-	std::size_t pos = 0;
-	while (pos <= data.size()) {
-		auto nl = data.find('\n', pos);
-		std::string_view line(data.data() + pos, (nl == std::string::npos ? data.size() : nl) - pos);
-		bool dialogue = line.size() >= 9 && line.substr(0, 9) == "Dialogue:";
-		if (!dialogue) {
-			out.append(line);
-		} else {
-			std::size_t text = 9;
-			int commas = 0;
-			for (; text < line.size(); ++text) {
-				if (line[text] == ',' && ++commas == 9) { ++text; break; }
-			}
-			out.append(line.substr(0, text));
-			out.append(agi::ass::DialogueMaskReplace(line.substr(text), token));
-		}
-		if (nl == std::string::npos) break;
-		out.push_back('\n');
-		pos = nl + 1;
-	}
-	return out;
-}
-
-
 class LibassSubtitlesProvider final : public SubtitlesProvider {
 	agi::BackgroundRunner *br;
 	std::shared_ptr<cache_thread_shared> shared;
@@ -156,7 +128,7 @@ class LibassSubtitlesProvider final : public SubtitlesProvider {
 		if (masked_track && masked_token == token)
 			return masked_track;
 		if (masked_track) { ass_free_track(masked_track); masked_track = nullptr; }
-		std::string masked = MaskAssData(source_data, token);
+		std::string masked = agi::ass::MaskAssData(source_data, token);
 		masked_track = ass_read_memory(library, &masked[0], masked.size(), nullptr);
 		if (!masked_track) throw agi::InternalError("libass failed to load masked subtitles.");
 		masked_token = token;
