@@ -104,6 +104,7 @@ public:
 		root->Add(text, wxSizerFlags().Expand().Border(wxLEFT | wxRIGHT, 8));
 
 		auto *buttons = new wxBoxSizer(wxHORIZONTAL);
+		buttons->AddStretchSpacer(1);
 		buttons->Add(new wxButton(this, wxID_OK, _("OK")), wxSizerFlags().Border(wxRIGHT, 6));
 		buttons->Add(new wxButton(this, wxID_APPLY, _("&Apply")), wxSizerFlags().Border(wxLEFT, 6));
 		buttons->Add(new wxButton(this, wxID_CANCEL, _("Cancel")), wxSizerFlags().Border(wxLEFT, 6));
