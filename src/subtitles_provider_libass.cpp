@@ -39,11 +39,13 @@
 #include "video_frame.h"
 
 #include <libaegisub/background_runner.h>
+#include <libaegisub/dialogue_text_mask.h>
 #include <libaegisub/dispatch.h>
 #include <libaegisub/exception.h>
 #include <libaegisub/log.h>
 #include <libaegisub/util.h>
 
+#include <algorithm>
 #include <atomic>
 #include <boost/gil.hpp>
 #include <memory>
@@ -87,6 +89,8 @@ class LibassSubtitlesProvider final : public SubtitlesProvider {
 	agi::BackgroundRunner *br;
 	std::shared_ptr<cache_thread_shared> shared;
 	ASS_Track* ass_track = nullptr;
+	/// 实时预览的台词遮挡；导出与截图路径始终为 false
+	bool text_mask_enabled = false;
 
 	ASS_Renderer *renderer() {
 		if (shared->ready)
@@ -125,6 +129,7 @@ public:
 	}
 
 	void DrawSubtitles(VideoFrame &dst, double time) override;
+	void SetTextMask(bool enabled) override { text_mask_enabled = enabled; }
 
 	void Reinitialize() override {
 		// No need to reinit if we're not even done with the initial init
@@ -168,6 +173,9 @@ void LibassSubtitlesProvider::DrawSubtitles(VideoFrame &frame,double time) {
 	// Note: this relies on Aegisub always rendering at video storage res
 	ass_set_storage_size(renderer(), frame.width, frame.height);
 
+	// 只在需要遮挡时收集字形盒；默认关闭，不影响正常渲染。
+	ass_set_glyph_box_collection(renderer(), text_mask_enabled ? 1 : 0);
+
 	// Add 1e-6 to guard against floating point imprecision errors on int -> float -> *1000 -> int round trips
 	ASS_Image* img = ass_render_frame(renderer(), ass_track, floor(time * 1000 + 1e-6), nullptr);
 
@@ -200,6 +208,39 @@ void LibassSubtitlesProvider::DrawSubtitles(VideoFrame &frame,double time) {
 			ret[3] = 0;
 			return ret;
 		});
+	}
+
+	if (text_mask_enabled) {
+		// libass 只返回合并后的位图段，这里用补丁导出的逐字形盒把台词正文盖成实心块：
+		// 标点与 \p 绘图不在遮挡范围内，位置与排版保持不变。
+		ASS_GlyphBox *boxes = nullptr;
+		int count = ass_get_glyph_boxes(renderer(), &boxes);
+		for (int i = 0; i < count; ++i) {
+			ASS_GlyphBox const &box = boxes[i];
+			if (box.is_drawing || !box.text_length || !box.event_text)
+				continue;
+
+			bool masked = false;
+			auto ranges = agi::ass::DialogueMaskRanges(box.event_text);
+			for (auto const &range : ranges) {
+				if (range.start < box.text_offset + box.text_length &&
+				    box.text_offset < range.start + range.length) {
+					masked = true;
+					break;
+				}
+			}
+			if (!masked)
+				continue;
+
+			int x0 = std::max(0, box.x - 1);
+			int y0 = std::max(0, box.y - 1);
+			int x1 = std::min<int>(frame.width, box.x + box.w + 1);
+			int y1 = std::min<int>(frame.height, box.y + box.h + 1);
+			if (x1 <= x0 || y1 <= y0)
+				continue;
+
+			fill_pixels(subimage_view(dst, x0, y0, x1 - x0, y1 - y0), bgra8_pixel_t(0, 0, 0, 0));
+		}
 	}
 }
 }

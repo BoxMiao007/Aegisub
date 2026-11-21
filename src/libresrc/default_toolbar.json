@@ -60,6 +60,8 @@
         "",
         "app/options",
         "grid/tag/cycle_hiding",
+        "",
+        "video/spoiler_shield",
         "subtitle/text_mask"
     ],
     "video" : [
@@ -77,7 +79,6 @@
         "video/tool/clip",
         "video/tool/vector_clip",
         "",
-        "help/video",
-        "video/spoiler_shield"
+        "help/video"
     ]
 }

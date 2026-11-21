@@ -2,3 +2,7 @@
 directory = libass
 url = https://github.com/libass/libass.git
 revision = 0.17.5
+
+# 本 fork 的最小改动：导出逐字形盒，供实时预览遮挡台词正文使用。
+# Meson 在下载后自动应用 subprojects/packagefiles/ 下的 diff。
+diff_files = libass-mask-glyphs.diff

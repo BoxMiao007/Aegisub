@@ -71,7 +71,7 @@ class AsyncVideoProvider {
 	/// lines have actually changed
 	bool NeedUpdate(std::vector<AssDialogueBase const*> const& visible_lines);
 
-	std::shared_ptr<VideoFrame> ProcFrame(int frame, double time, bool raw = false);
+	std::shared_ptr<VideoFrame> ProcFrame(int frame, double time, bool raw = false, bool text_mask = false);
 
 	/// Produce a frame if req_version is still the current version
 	void ProcAsync(uint_fast32_t req_version, bool check_updated);

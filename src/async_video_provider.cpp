@@ -34,7 +34,7 @@ enum {
 	SUBS_FILE_ALREADY_LOADED = -2
 };
 
-std::shared_ptr<VideoFrame> AsyncVideoProvider::ProcFrame(int frame_number, double time, bool raw) {
+std::shared_ptr<VideoFrame> AsyncVideoProvider::ProcFrame(int frame_number, double time, bool raw, bool text_mask) {
 	// Find an unused buffer to use or allocate a new one if needed
 	std::shared_ptr<VideoFrame> frame;
 	for (auto& buffer : buffers) {
@@ -77,10 +77,16 @@ std::shared_ptr<VideoFrame> AsyncVideoProvider::ProcFrame(int frame_number, doub
 	}
 	catch (agi::Exception const& err) { throw SubtitlesProviderErrorEvent(err.GetMessage()); }
 
+	if (subs_provider)
+		subs_provider->SetTextMask(text_mask);
+
 	try {
 		subs_provider->DrawSubtitles(*frame, time / 1000.);
 	}
 	catch (agi::UserCancelException const&) { }
+
+	if (subs_provider)
+		subs_provider->SetTextMask(false);
 
 	return frame;
 }
@@ -268,8 +274,9 @@ void AsyncVideoProvider::ProcAsync(uint_fast32_t req_version, bool check_updated
 
 	try {
 		auto token = preview_mask.Capture();
-		// 现有渲染器没有逐字形坐标。只在实时预览走原画面，输出 API 保持原样。
-		auto frame = ProcFrame(frame_number, time, token.Masked());
+		// 实时预览按字遮挡：仍走正常字幕渲染，只把台词正文换成实心块；
+		// 导出、截图与复制走 GetFrame 默认路径，不受影响。
+		auto frame = ProcFrame(frame_number, time, false, token.Masked());
 		if (req_version != version || !preview_mask.Accept(token)) return;
 		auto evt = new FrameReadyEvent(std::move(frame), time, token);
 		evt->SetEventType(EVT_FRAME_READY);

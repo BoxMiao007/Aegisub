@@ -36,7 +36,6 @@
 
 namespace agi { struct Context; }
 class wxTextCtrl;
-class wxStaticText;
 
 /// @class VideoBox
 /// @brief The box containing the video display and associated controls
@@ -48,8 +47,6 @@ class VideoBox final : public wxPanel {
 
 	/// Update VideoPosition and VideoSubsPos
 	void UpdateTimeBoxes();
-	wxStaticText *mask_notice;
-	void UpdateMaskNotice();
 
 public:
 	VideoBox(wxWindow *parent, bool isDetached, agi::Context *context);

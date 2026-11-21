@@ -1,0 +1,166 @@
+index 851ca7cb9..7fd92a11a 100644
+--- a/libass/ass.h
++++ b/libass/ass.h
+@@ -617,6 +617,25 @@ void ass_set_cache_limits(ASS_Renderer *priv, int glyph_max,
+ ASS_Image *ass_render_frame(ASS_Renderer *priv, ASS_Track *track,
+                             long long now, int *detect_change);
+ 
++/*
++ * Aegisub extension: optional per-glyph boxes for masking subtitle text in
++ * the video preview. Collection is off by default and has no effect on
++ * rendering; the returned array stays valid until the next render call.
++ */
++typedef struct ass_glyph_box {
++    int x, y, w, h;             /* Glyph bitmap box in frame coordinates */
++    const char *event_text;     /* ASS_Event.Text this glyph came from */
++    size_t text_offset;         /* Byte offset into event_text */
++    size_t text_length;         /* Byte length in event_text */
++    int is_drawing;             /* Nonzero for \p drawing glyphs */
++} ASS_GlyphBox;
++
++/* Enable or disable collection. Enabling discards previously collected boxes. */
++void ass_set_glyph_box_collection(ASS_Renderer *priv, int enabled);
++
++/* Return the number of boxes collected for the last rendered frame. */
++int ass_get_glyph_boxes(ASS_Renderer *priv, ASS_GlyphBox **boxes);
++
+ 
+ /*
+  * The following functions operate on track objects and do not need
+index e1eb7d2fd..945075307 100644
+--- a/libass/ass_render.h
++++ b/libass/ass_render.h
+@@ -125,6 +125,8 @@ typedef struct {
+ // GlyphInfo and TextInfo are used for text centering and word-wrapping operations
+ typedef struct glyph_info {
+     unsigned symbol;
++    size_t text_offset;         // byte offset in ASS_Event.Text
++    size_t text_length;         // byte length in ASS_Event.Text
+     bool skip;                  // skip glyph when layouting text
+     bool is_trimmed_whitespace;
+     ASS_Font *font;
+@@ -337,6 +339,11 @@ struct ass_renderer {
+ 
+     BitmapEngine engine;
+ 
++    // Aegisub extension: opt-in per-glyph box collection
++    int collect_glyph_boxes;
++    ASS_GlyphBox *glyph_boxes;
++    int n_glyph_boxes, max_glyph_boxes;
++
+     ASS_Style user_override_style;
+ };
+ 
+index 18f856a8e..e10e79b09 100644
+--- a/libass/ass_render.c
++++ b/libass/ass_render.c
+@@ -192,6 +192,7 @@ void ass_renderer_done(ASS_Renderer *render_priv)
+     if (render_priv->ftlibrary)
+         FT_Done_FreeType(render_priv->ftlibrary);
+     free(render_priv->eimg);
++    free(render_priv->glyph_boxes);
+ 
+     render_context_done(&render_priv->state);
+ 
+@@ -2058,6 +2059,7 @@ static bool parse_events(RenderContext *state, ASS_Event *event)
+     // Event parsing.
+     while (true) {
+         ASS_StringView drawing_text = {NULL, 0};
++        const char *glyph_start = NULL;
+ 
+         // get next char, executing style override
+         // this affects render_context
+@@ -2075,10 +2077,12 @@ static bool parse_events(RenderContext *state, ASS_Event *event)
+                     q++;
+                 drawing_text.str = p;
+                 drawing_text.len = q - p;
++                glyph_start = p;
+                 code = 0xfffc; // object replacement character
+                 p = q;
+                 break;
+             } else {
++                glyph_start = p;
+                 code = ass_get_next_char(state, &p);
+                 break;
+             }
+@@ -2108,6 +2112,8 @@ static bool parse_events(RenderContext *state, ASS_Event *event)
+ 
+         // Clear current GlyphInfo
+         memset(info, 0, sizeof(GlyphInfo));
++        info->text_offset = glyph_start ? (size_t)(glyph_start - event->Text) : 0;
++        info->text_length = glyph_start ? (size_t)(p - glyph_start) : 0;
+ 
+         // Parse drawing
+         if (drawing_text.str) {
+@@ -2548,6 +2554,31 @@ static void render_and_combine_glyphs(RenderContext *state,
+             if (!info->bm && !info->bm_o)
+                 continue;
+ 
++            // 用字形墨迹盒（bbox，含边框）叠加已定位的绝对坐标生成盒，
++            // 与 karaoke 高亮使用同一套坐标换算，位置与排版一致。
++            if (render_priv->collect_glyph_boxes && info->text_length) {
++                int x = d6_to_int(info->pos.x + info->bbox.x_min);
++                int y = d6_to_int(info->pos.y + info->bbox.y_min);
++                int w = FFMAX(d6_to_int(info->bbox.x_max - info->bbox.x_min), 1);
++                int h = FFMAX(d6_to_int(info->bbox.y_max - info->bbox.y_min), 1);
++                if (render_priv->n_glyph_boxes >= render_priv->max_glyph_boxes) {
++                    int new_max = render_priv->max_glyph_boxes ? render_priv->max_glyph_boxes * 2 : 256;
++                    void *tmp = realloc(render_priv->glyph_boxes, new_max * sizeof(ASS_GlyphBox));
++                    if (tmp) {
++                        render_priv->glyph_boxes = tmp;
++                        render_priv->max_glyph_boxes = new_max;
++                    }
++                }
++                if (render_priv->n_glyph_boxes < render_priv->max_glyph_boxes) {
++                    ASS_GlyphBox *box = &render_priv->glyph_boxes[render_priv->n_glyph_boxes++];
++                    box->x = x; box->y = y; box->w = w; box->h = h;
++                    box->event_text = state->event->Text;
++                    box->text_offset = info->text_offset;
++                    box->text_length = info->text_length;
++                    box->is_drawing = info->drawing_text.str != NULL;
++                }
++            }
++
+             if (current_info->bitmap_count >= current_info->max_bitmap_count) {
+                 size_t new_size = 2 * current_info->max_bitmap_count;
+                 if (!ASS_REALLOC_ARRAY(current_info->bitmaps, new_size))
+@@ -3367,6 +3398,19 @@ static ASS_Image *ass_free_image(ASS_Image *img) {
+  *        0 if identical, 1 if different positions, 2 if different content.
+  *        Can be NULL, in that case no detection is performed.
+  */
++void ass_set_glyph_box_collection(ASS_Renderer *priv, int enabled)
++{
++    if (!priv) return;
++    priv->collect_glyph_boxes = !!enabled;
++    priv->n_glyph_boxes = 0;
++}
++
++int ass_get_glyph_boxes(ASS_Renderer *priv, ASS_GlyphBox **boxes)
++{
++    if (boxes) *boxes = priv ? priv->glyph_boxes : NULL;
++    return priv ? priv->n_glyph_boxes : 0;
++}
++
+ ASS_Image *ass_render_frame(ASS_Renderer *priv, ASS_Track *track,
+                             long long now, int *detect_change)
+ {
+@@ -3376,6 +3420,7 @@ ASS_Image *ass_render_frame(ASS_Renderer *priv, ASS_Track *track,
+             *detect_change = 2;
+         return NULL;
+     }
++    priv->n_glyph_boxes = 0;
+ 
+     // render events separately
+     int cnt = 0;
+index 4cc6215e2..7e0ce70fb 100644
+--- a/libass/libass.sym
++++ b/libass/libass.sym
+@@ -17,6 +17,8 @@ ass_set_line_spacing
+ ass_get_available_font_providers
+ ass_set_fonts
+ ass_render_frame
++ass_set_glyph_box_collection
++ass_get_glyph_boxes
+ ass_new_track
+ ass_free_track
+ ass_alloc_style
