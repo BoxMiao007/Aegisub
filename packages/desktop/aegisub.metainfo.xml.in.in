@@ -75,6 +75,11 @@
   </provides>
   <releases>
     <!-- TODO: automatic replace at config time -->
+    <release version="3.5.1-fork.5-pre.20261121" date="2026-11-21">
+      <description>
+        <p>修复在遮挡设置里重复点应用/确定后视频预览保持全黑的问题：仅在遮挡选项真正变化时才失效预览。</p>
+      </description>
+    </release>
     <release version="3.5.1-fork.4-pre.20261121" date="2026-11-21">
       <description>
         <p>修复 CSRI/VSFilter 字幕提供者下实时预览仍显示真实台词的问题；便携包改为安装期重新编译全部翻译，修复新界面字符串显示英文。</p>
