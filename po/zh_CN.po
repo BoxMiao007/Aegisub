@@ -7645,4 +7645,9 @@ msgstr "确定"
 msgid "&Apply"
 msgstr "应用(&A)"
 
+#: ../src/command/mask_settings.cpp
+msgid "Configure the spoiler shield and the subtitle text mask"
+msgstr "配置防剧透遮罩和字幕文字遮挡"
+
+
 
