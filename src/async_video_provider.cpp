@@ -289,7 +289,11 @@ void AsyncVideoProvider::ProcAsync(uint_fast32_t req_version, bool check_updated
 		std::shared_ptr<const std::string> token_text;
 		if (token.Masked()) token_text = preview_token.load();
 		auto frame = ProcFrame(frame_number, time, false, token.Masked(), token_text ? *token_text : std::string());
-		if (req_version != version || !preview_mask.Accept(token)) return;
+		// Only reject if the preview mask state changed while this frame was
+		// rendering. Do not reject merely because a newer frame was requested:
+		// playback requests arrive faster than a 1080p frame can be produced,
+		// so the old check dropped almost every frame and caused severe stutter.
+		if (!preview_mask.Accept(token)) return;
 		auto evt = new FrameReadyEvent(std::move(frame), time, token);
 		evt->SetEventType(EVT_FRAME_READY);
 		parent->QueueEvent(evt);
