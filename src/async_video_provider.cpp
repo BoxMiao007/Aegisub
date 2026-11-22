@@ -77,15 +77,17 @@ std::shared_ptr<VideoFrame> AsyncVideoProvider::ProcFrame(int frame_number, doub
 	}
 	catch (agi::Exception const& err) { throw SubtitlesProviderErrorEvent(err.GetMessage()); }
 
-	if (subs_provider)
-		subs_provider->SetTextReplacement(text_mask, text_token);
+	// Only switch the provider into masked mode when the preview really needs it;
+	// the common no-mask playback path must not pay two virtual calls per frame.
+	if (subs_provider && text_mask)
+		subs_provider->SetTextReplacement(true, text_token);
 
 	try {
 		subs_provider->DrawSubtitles(*frame, time / 1000.);
 	}
 	catch (agi::UserCancelException const&) { }
 
-	if (subs_provider)
+	if (subs_provider && text_mask)
 		subs_provider->SetTextReplacement(false, text_token);
 
 	return frame;
