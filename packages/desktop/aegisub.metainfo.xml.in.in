@@ -75,6 +75,11 @@
   </provides>
   <releases>
     <!-- TODO: automatic replace at config time -->
+    <release version="3.5.1-fork.6-pre.20261122" date="2026-11-22">
+      <description>
+        <p>遮挡设置新增独立的视频预览字幕遮挡开关，马赛克块大小下限改为 32；修复 1080p60 预览帧被误判过期而大量丢弃造成的播放卡顿，并补齐中文翻译。</p>
+      </description>
+    </release>
     <release version="3.5.1-fork.5-pre.20261121" date="2026-11-21">
       <description>
         <p>修复在遮挡设置里重复点应用/确定后视频预览保持全黑的问题：仅在遮挡选项真正变化时才失效预览。</p>
