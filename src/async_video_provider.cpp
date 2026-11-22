@@ -285,8 +285,10 @@ void AsyncVideoProvider::ProcAsync(uint_fast32_t req_version, bool check_updated
 	try {
 		auto token = preview_mask.Capture();
 		// 实时预览用替换符改写正文；导出、截图与复制走 GetFrame 默认路径，不受影响。
-		auto token_text = preview_token.load();
-		auto frame = ProcFrame(frame_number, time, false, token.Masked(), *token_text);
+		// 关闭预览遮挡时不要读取 atomic shared_ptr，避免无遮挡播放每帧付锁/引用计数开销。
+		std::shared_ptr<const std::string> token_text;
+		if (token.Masked()) token_text = preview_token.load();
+		auto frame = ProcFrame(frame_number, time, false, token.Masked(), token_text ? *token_text : std::string());
 		if (req_version != version || !preview_mask.Accept(token)) return;
 		auto evt = new FrameReadyEvent(std::move(frame), time, token);
 		evt->SetEventType(EVT_FRAME_READY);

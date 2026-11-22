@@ -300,10 +300,11 @@ void VideoDisplay::RenderSpoilerShield() {
 	glEnd();
 	glLineWidth(1.0f);
 
-	// Do not call glGetError here: it forces a GPU synchronization on every
-	// preview frame, which made 1080p60 playback visibly stutter when the shield
-	// was enabled. The texture path already validates its own uploads before
-	// this draw; the solid path only issues valid fixed-function quads.
+	// Keep the error drain, but make it conditional: a leftover GL error from the
+	// shield would otherwise be attributed to VideoOutGL's next frame and can
+	// stop video rendering. The per-frame cost is paid only when the shield is
+	// actually visible.
+	while (glGetError() != GL_NO_ERROR) {}
 }
 
 bool VideoDisplay::ShieldVideoWindow(spoiler::WindowRect *rect) const {

@@ -257,8 +257,10 @@ void VideoDisplay::UploadFrameData(FrameReadyEvent &evt) {
 		evt.preview.Masked() != (OPT_GET("Subtitle/Text Mask")->GetBool() && OPT_GET("Subtitle/Text Mask Preview")->GetBool())) return;
 	waiting_preview = false;
 	pending_frame = evt.frame;
-	shield_src = evt.frame;
-	shield_tex_dirty = true;
+	if (SpoilerShieldOn()) {
+		shield_src = evt.frame;
+		shield_tex_dirty = true;
+	}
 	Render();
 }
 
