@@ -128,7 +128,7 @@ struct video_spoiler_shield_strength final : public spoiler_shield_command {
 		return spoiler_shield_command::Validate(c) && spoiler::GetEffect() == spoiler::Effect::Mosaic;
 	}
 	void operator()(agi::Context *c) override {
-		SpoilerShieldStrengthDialog dialog(c->parent, _("Mosaic Strength"), (int)OPT_GET(spoiler::MosaicBlock)->GetInt(), 2, 96);
+		SpoilerShieldStrengthDialog dialog(c->parent, _("Mosaic Strength"), (int)OPT_GET(spoiler::MosaicBlock)->GetInt(), 32, 96);
 		if (dialog.ShowModal() == wxID_OK)
 			OPT_SET(spoiler::MosaicBlock)->SetInt(dialog.GetStrength());
 	}

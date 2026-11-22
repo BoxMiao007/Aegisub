@@ -7634,6 +7634,10 @@ msgid "Empty or invalid characters fall back to X"
 msgstr "替换字符为空或含非法字符时自动改用 X"
 
 #: ../src/command/mask_settings.cpp
+msgid "Mask subtitles in video preview"
+msgstr "在视频预览中遮挡字幕"
+
+#: ../src/command/mask_settings.cpp
 msgid "OK"
 msgstr "确定"
 

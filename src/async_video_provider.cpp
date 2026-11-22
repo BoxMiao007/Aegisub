@@ -170,7 +170,7 @@ AsyncVideoProvider::AsyncVideoProvider(agi::fs::path const& video_filename, agi:
 , subs_provider(get_subs_provider(parent, br))
 , source_provider(VideoProviderFactory::GetProvider(video_filename, colormatrix, br))
 , parent(parent)
-, preview_mask(OPT_GET("Subtitle/Text Mask")->GetBool())
+, preview_mask(OPT_GET("Subtitle/Text Mask")->GetBool() && OPT_GET("Subtitle/Text Mask Preview")->GetBool())
 {
 }
 

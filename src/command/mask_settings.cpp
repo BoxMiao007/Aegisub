@@ -37,6 +37,7 @@ class MaskSettingsDialog final : public wxDialog {
 	wxSlider *mosaic_block;
 	wxStaticText *mosaic_label;
 	wxCheckBox *mask_enabled;
+	wxCheckBox *preview_mask;
 	wxTextCtrl *replacement;
 
 	void Apply() {
@@ -45,6 +46,7 @@ class MaskSettingsDialog final : public wxDialog {
 		OPT_SET(spoiler::Color)->SetColor(from_wx(shield_color->GetColour()));
 		OPT_SET(spoiler::MosaicBlock)->SetInt(mosaic_block->GetValue());
 		OPT_SET("Subtitle/Text Mask")->SetBool(mask_enabled->GetValue());
+		OPT_SET("Subtitle/Text Mask Preview")->SetBool(preview_mask->GetValue());
 		OPT_SET("Subtitle/Text Mask Replacement")->SetString(from_wx(replacement->GetValue()));
 	}
 
@@ -75,7 +77,7 @@ public:
 		shield_color = new wxColourPickerCtrl(this, wxID_ANY, to_wx(OPT_GET(spoiler::Color)->GetColor()));
 		Row(shield, _("Fill colour"), shield_color);
 
-		mosaic_block = new wxSlider(this, wxID_ANY, (int)OPT_GET(spoiler::MosaicBlock)->GetInt(), 2, 96, wxDefaultPosition, wxSize(220, -1));
+		mosaic_block = new wxSlider(this, wxID_ANY, (int)OPT_GET(spoiler::MosaicBlock)->GetInt(), 32, 96, wxDefaultPosition, wxSize(220, -1));
 		mosaic_label = new wxStaticText(this, wxID_ANY, fmt_wx("%d", mosaic_block->GetValue()));
 		mosaic_block->Bind(wxEVT_SLIDER, [this](wxCommandEvent& e) { mosaic_label->SetLabel(fmt_wx("%d", e.GetInt())); });
 		auto *block_row = new wxBoxSizer(wxHORIZONTAL);
@@ -95,6 +97,10 @@ public:
 		mask_enabled = new wxCheckBox(this, wxID_ANY, _("Enable subtitle text mask"));
 		mask_enabled->SetValue(OPT_GET("Subtitle/Text Mask")->GetBool());
 		text->Add(mask_enabled, wxSizerFlags().Border(wxALL, 4));
+
+		preview_mask = new wxCheckBox(this, wxID_ANY, _("Mask subtitles in video preview"));
+		preview_mask->SetValue(OPT_GET("Subtitle/Text Mask Preview")->GetBool());
+		text->Add(preview_mask, wxSizerFlags().Border(wxLEFT | wxRIGHT | wxBOTTOM, 4));
 
 		replacement = new wxTextCtrl(this, wxID_ANY, to_wx(OPT_GET("Subtitle/Text Mask Replacement")->GetString()), wxDefaultPosition, wxSize(160, -1));
 		Row(text, _("Replacement character"), replacement);

@@ -87,7 +87,7 @@ void VideoDisplay::RebuildShieldTextureIfNeeded() {
 		return;
 	}
 
-	int block = std::clamp((int)OPT_GET(spoiler::MosaicBlock)->GetInt(), 2, 128);
+	int block = std::clamp((int)OPT_GET(spoiler::MosaicBlock)->GetInt(), 32, 128);
 
 	VideoFrame const& f = *shield_src;
 	if (f.width <= 0 || f.height <= 0 || f.pitch <= 0) return;
@@ -152,12 +152,16 @@ void VideoDisplay::RebuildShieldTextureIfNeeded() {
 			int x0 = ox * block;
 			int x1 = std::min(f.width, x0 + block);
 			int64_t sb = 0, sg = 0, sr = 0, n = 0;
-			for (int py = py0; py < py1; ++py) {
+			// 播放时每帧都重算；按块内 4x4 网格抽样即可得到稳定的马赛克色，
+			// 避免对 1080p 每帧遍历整幅画面造成播放卡顿。
+			int step_x = std::max(1, (x1 - x0) / 4);
+			int step_y = std::max(1, (py1 - py0) / 4);
+			for (int py = py0; py < py1; py += step_y) {
 				int row = f.flipped ? (f.height - 1 - py) : py;
 				if (row < 0 || row >= f.height) continue;
 				unsigned char const *p = f.data.data()
 					+ (size_t)row * f.pitch + (size_t)x0 * 4;
-				for (int x = x0; x < x1; ++x, p += 4) {
+				for (int x = x0; x < x1; x += step_x, p += (size_t)step_x * 4) {
 					sb += p[0]; sg += p[1]; sr += p[2]; ++n;
 				}
 			}

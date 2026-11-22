@@ -53,8 +53,11 @@ VideoController::VideoController(agi::Context *c)
 	context->ass->AddCommitListener(&VideoController::OnSubtitlesCommit, this),
 	context->project->AddVideoProviderListener(&VideoController::OnNewVideoProvider, this),
 	context->selectionController->AddActiveLineListener(&VideoController::OnActiveLineChanged, this),
-	OPT_SUB("Subtitle/Text Mask", [this](agi::OptionValue const& option) {
-		if (provider) provider->SetPreviewTextMask(option.GetBool());
+	OPT_SUB("Subtitle/Text Mask", [this](agi::OptionValue const&) {
+		if (provider) provider->SetPreviewTextMask(OPT_GET("Subtitle/Text Mask")->GetBool() && OPT_GET("Subtitle/Text Mask Preview")->GetBool());
+	}),
+	OPT_SUB("Subtitle/Text Mask Preview", [this](agi::OptionValue const&) {
+		if (provider) provider->SetPreviewTextMask(OPT_GET("Subtitle/Text Mask")->GetBool() && OPT_GET("Subtitle/Text Mask Preview")->GetBool());
 	}),
 	OPT_SUB("Subtitle/Text Mask Replacement", [this](agi::OptionValue const& option) {
 		if (provider) provider->SetPreviewTextReplacement(option.GetString());
@@ -70,7 +73,7 @@ void VideoController::OnNewVideoProvider(AsyncVideoProvider *new_provider) {
 	Stop();
 	provider = new_provider;
 	if (provider) {
-		provider->SetPreviewTextMask(OPT_GET("Subtitle/Text Mask")->GetBool());
+		provider->SetPreviewTextMask(OPT_GET("Subtitle/Text Mask")->GetBool() && OPT_GET("Subtitle/Text Mask Preview")->GetBool());
 		provider->SetPreviewTextReplacement(OPT_GET("Subtitle/Text Mask Replacement")->GetString());
 	}
 	color_matrix = std::nullopt;

@@ -70,8 +70,8 @@ class VideoDisplay final : public wxGLCanvas {
 
 	agi::Context *con;
 
-	/// 缓存当前字幕遮挡选项，避免 Apply 重复写同值导致预览被清空
-	bool cached_text_mask = false;
+	/// 缓存当前预览字幕遮挡选项，避免 Apply 重复写同值导致预览被清空
+	bool cached_preview_mask = false;
 	std::string cached_text_mask_token = "X";
 
 	std::unique_ptr<wxMenu> context_menu;
